@@ -40,7 +40,7 @@ const TILT_RANGE = 25;
 const TILT_EASE = 0.2;
 
 const state = {
-  display: loadPref('cc01.display', 'words'), // 'words' | 'percent'
+  display: loadPref('cc02.display', 'words'), // 'words' | 'percent'
   input: 'drag',                          // 'drag' | 'tilt'
   tilt: { x: STAGE_SIZE / 2, y: STAGE_SIZE / 2 }, // eased canvas position
   tiltTarget: null,
@@ -125,7 +125,7 @@ function refreshControls() {
 
 function setDisplay(mode) {
   state.display = mode;
-  savePref('cc01.display', mode);
+  savePref('cc02.display', mode);
   refreshControls();
 }
 
