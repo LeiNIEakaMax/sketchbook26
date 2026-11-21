@@ -1,5 +1,13 @@
 [
   {
+    "number": 1,
+    "slug": "01-5x5-grid-font",
+    "title": "5x5 grid font",
+    "stack": "p5",
+    "date": "2026-11-21",
+    "description": "A 5×5 dot-grid letter A. Stretch the grid; tune fill, stroke, spacing and corner radius."
+  },
+  {
     "number": 2,
     "slug": "02-color-and-food",
     "title": "Color and food",
