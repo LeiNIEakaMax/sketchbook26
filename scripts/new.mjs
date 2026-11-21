@@ -3,7 +3,9 @@
 //
 //   npm run new -- 01 "Gravity wells"
 //   npm run new -- 02 "Type soup" --template p5
+//   npm run new -- 03 "Late night" --date 2026-12-01
 //
+// The date defaults to today on this computer.
 // Makes challenges/01-gravity-wells/ from templates/<template>/.
 import { cpSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -13,12 +15,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const tIdx = args.indexOf('--template');
 const template = tIdx >= 0 ? args.splice(tIdx, 2)[1] : 'p5';
+const dIdx = args.indexOf('--date');
+const now = new Date();
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+const date = dIdx >= 0 ? args.splice(dIdx, 2)[1] : today;
 const [num, ...titleParts] = args;
 const title = titleParts.join(' ').trim();
 
 const templates = readdirSync(join(root, 'templates'));
 if (!/^\d{1,2}$/.test(num || '') || !title) {
-  console.error('Usage: npm run new -- <number> "<title>" [--template ' + templates.join('|') + ']');
+  console.error('Usage: npm run new -- <number> "<title>" [--template ' + templates.join('|') + '] [--date YYYY-MM-DD]');
+  process.exit(1);
+}
+if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+  console.error('--date must look like 2026-11-20');
   process.exit(1);
 }
 if (!templates.includes(template)) {
@@ -49,7 +59,7 @@ manifest.push({
   slug,
   title,
   stack: template,
-  date: new Date().toISOString().slice(0, 10),
+  date,
   description: '',
 });
 manifest.sort((a, b) => a.number - b.number);

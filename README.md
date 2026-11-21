@@ -9,7 +9,7 @@ npm run new -- 01 "Gravity wells"   # copies templates/p5 → challenges/01-grav
 npm run serve                       # http://localhost:8000
 ```
 
-Then edit `challenges/01-gravity-wells/sketch.js`. No install step: the scripts use plain Node (18+), and p5.js loads from a CDN.
+Each challenge gets today's date in `challenges.json` (add `--date 2026-11-20` to set another), and the gallery shows it on the tile. Then edit `challenges/01-gravity-wells/sketch.js`. No install step: the scripts use plain Node (18+), and p5.js loads from a CDN.
 
 **Testing on your phone:** `npm run serve` also prints a LAN address (like `http://192.168.1.42:8000/`), and the gallery at `localhost:8000` shows it as a QR code. Scan it with a phone on the same Wi‑Fi. If the page doesn't load, allow incoming connections for Node in the macOS firewall. The QR code only appears locally, never on the deployed site. Phones have no hover, so pointer-driven sketches respond while a finger drags.
 
