@@ -1,6 +1,7 @@
 // 5x5 grid font
 // Canvas is 2000×2000. mouseX / mouseY are already in canvas coordinates.
 // S saves a PNG (without the controls), F toggles fullscreen, H hides the controls.
+// Click the letter to show its bounding box and resize handles; click empty space to hide them.
 //
 // A letter is a 5×5 grid of dots inside a container box. The dots always fill
 // the box: each dot is (box size − 4 gaps) / 5 wide and tall, so stretching the
@@ -64,6 +65,7 @@ const SWATCHES = ['#d2d2d2', '#ffffff', '#ff5a36', '#ffd23f', '#3dd68c', '#3d7bf
 const PREF_KEY = 'cc01.settings';
 let S = loadSettings();
 let showUI = true;
+let selected = false; // the letter's bounding box + handles show only while selected
 
 /* ---------- p5 ---------- */
 
@@ -77,7 +79,7 @@ function draw() {
   background(BG);
   drawLetter('A');
   if (showUI) {
-    drawFrame();
+    if (selected) drawFrame();
     drawPanel();
   }
   updateCursor();
@@ -382,6 +384,10 @@ function fmt(v) {
 
 /* ---------- pointer ---------- */
 
+function inside(x, y, r, pad) {
+  return x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
+}
+
 function hitAt(x, y) {
   // Last drawn is on top.
   for (let i = hits.length - 1; i >= 0; i--) {
@@ -394,7 +400,13 @@ function hitAt(x, y) {
 function mousePressed() {
   if (!showUI) return;
   const h = hitAt(mouseX, mouseY);
-  if (!h) return;
+  if (!h) {
+    // Click the letter to select it (shows the box), click empty space to deselect.
+    // Clicks on the control panel leave the selection alone.
+    if (inside(mouseX, mouseY, letterBox(), S.strokeOn ? S.strokeW : 0)) selected = true;
+    else if (!inside(mouseX, mouseY, PANEL, 0)) selected = false;
+    return false;
+  }
   if (h.kind === 'tap') {
     h.fn();
   } else if (h.kind === 'slider') {
