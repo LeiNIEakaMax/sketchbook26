@@ -689,9 +689,28 @@ function slider(x, y, w, name, key, enabled) {
   rect(x, ty - 4, w, 8);
   fill(enabled ? ACTIVE : '#666');
   rect(x, ty - 4, w * t, 8);
+  // Square knob that turns 135° into a diamond while the slider is hovered or dragged.
+  const area = { x: x - 20, y: y - 6, w: w + 40, h: 84 };
+  const hot = enabled && ((drag && drag.key === key) || (!drag && inside(mouseX, mouseY, area, 0)));
+  const a = knobAngle(key, hot ? KNOB_HOVER_TURN : 0);
   fill(enabled ? '#ffffff' : '#888');
-  rect(x + w * t - 18, ty - 18, 36, 36); // square knob
-  hits.push({ kind: 'slider', key, trackX: x, trackW: w, x: x - 20, y: y - 6, w: w + 40, h: 84 });
+  push();
+  translate(x + w * t, ty);
+  rotate(radians(a));
+  rect(-18, -18, 36, 36);
+  pop();
+  hits.push({ kind: 'slider', key, trackX: x, trackW: w, ...area });
+}
+
+// Each slider knob eases towards its target angle (instantly with reduced motion).
+const KNOB_HOVER_TURN = 135; // degrees
+const knobAngles = {};
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function knobAngle(key, target) {
+  const cur = knobAngles[key] || 0;
+  const next = reduceMotion ? target : cur + (target - cur) * 0.35;
+  knobAngles[key] = Math.abs(next - target) < 0.5 ? target : next;
+  return knobAngles[key];
 }
 
 function button(x, y, w, txt, fn, on) {
