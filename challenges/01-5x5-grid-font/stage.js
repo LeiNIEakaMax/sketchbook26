@@ -31,6 +31,7 @@ function stage(opts = {}) {
   // A plain listener, so your own keyPressed() still works.
   window.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return; // typing, not shortcuts
     const k = e.key.toLowerCase();
     if (exportKey && k === exportKey) saveStage();
     if (fullscreenKey && k === fullscreenKey) fullscreen(!fullscreen());
