@@ -1,14 +1,20 @@
-// 5x5 grid font
+// Lateralus, a 5x5 grid font
 // Canvas is 2000×2000. mouseX / mouseY are already in canvas coordinates.
 // S saves a PNG (without the controls), F toggles fullscreen, H hides the controls
 // (these keys are ignored while you are typing in the Type view).
 //
-// Three views, picked top left:
+// Layout follows the Figma frame "Type view" (node 21:54957): the name on the left of
+// the header, the view switch in the middle, and a Control toggle on the right that
+// shows or hides the control panel at the bottom. The panel holds the dot controls,
+// the shortcut keys and, in Type view, a top row with the type settings.
+//
+// Three views, picked in the header:
 //   Letter: one glyph in its container box. Click it to show the box and its
 //           handles, drag them to stretch it; click empty space to hide them.
 //   All:    every glyph (A–Z, a–z, 0–9). Click one to open it in Letter.
 //   Type:   a type tester. Type your own words; Enter makes a new line and long
-//           lines wrap at spaces. Font size, letter spacing and line height on top.
+//           lines wrap at spaces. Font size, letter spacing and line height sit
+//           in the top row of the control panel.
 //
 // A glyph is a 5×5 grid of dots inside a container box. The dots always fill
 // the box: each dot is (box size − 4 gaps) / 5 wide and tall. Every dot has a
@@ -176,10 +182,10 @@ function draw() {
   updateCursor();
 }
 
-// Where All and Type draw: under the top bar, above the style panel if it's open.
+// Where All and Type draw: under the header, above the control panel if it's open.
 function contentArea() {
-  const top = TOP.y + TOP.h + 50;
-  const bottom = S.panel ? PANEL.y - 40 : 1950;
+  const top = 340;
+  const bottom = S.panel ? panelRect().y - 40 : 1950;
   return { x: 80, y: top, w: 1840, h: bottom - top };
 }
 
@@ -506,57 +512,50 @@ function drawFrame() {
 
 /* ---------- top bar (drawn on the canvas) ---------- */
 
-const TOP = { y: 40, h: 250 };
+const TOP = { y: 40, h: 138 }; // divider at y 178, as in Figma "Type view"
 const INK = '#e8e8e8';
 const DIM = '#8a8a8a';
 const LINE = '#3a3a3a';
 
+// Header: the name on the left, the view switch in the middle, the panel toggle on the right.
+// It's the same in all three views.
 function drawTopBar() {
-  const y = TOP.y;
-  segmented(60, y + 16, 460, 'view', ['letter', 'all', 'type'], true);
-
-  const mx = 600, mw = 900;
-  if (S.view === 'type') {
-    slider(mx, y, mw, 'Letter spacing', 'tracking', true);
-    slider(mx, y + 80, mw, 'Line height', 'leading', true);
-    slider(mx, y + 160, mw, 'Font size', 'size', true);
-    note(60, y + 120, isTyping() ? 'Typing… Enter for a new line' : 'Click the text to type');
-  } else if (S.view === 'all') {
-    note(mx, y + 46, 'Click a glyph to edit it in Letter view.');
-  } else {
-    note(mx, y + 46, `Editing “${S.letter}”. Click it to stretch the box; pick another letter in All.`);
-  }
-
-  button(1580, y + 16, 360, S.panel ? 'Dot style: shown' : 'Dot style: hidden', () => { S.panel = !S.panel; persist(); }, S.panel);
-
-  stroke(LINE);
-  strokeWeight(2);
-  line(60, y + TOP.h, 1940, y + TOP.h);
-
-  textAlign(RIGHT, TOP);
-  textSize(20);
-  noStroke();
-  fill(DIM);
-  text('S save PNG · H hide controls · F fullscreen', 1940, y + 96);
-}
-
-function note(x, y, txt) {
+  const mid = TOP.y + 62;
   noStroke();
   fill(DIM);
   textSize(24);
   textAlign(LEFT, CENTER);
-  text(txt, x, y);
+  text('LATERALUS', 60, mid);
+
+  segmented(770, mid - 28, 460, 'view', ['letter', 'all', 'type'], true);
+
+  const tx = 1940 - 96;
+  fill(INK);
+  textSize(26);
+  textAlign(RIGHT, CENTER);
+  text('Control', tx - 20, mid);
+  toggleSwitch(tx, mid - 24, S.panel);
+  hits.push({ kind: 'tap', x: tx - 140, y: mid - 32, w: 236, h: 64, fn: () => { S.panel = !S.panel; persist(); } });
+
+  stroke(LINE);
+  strokeWeight(2);
+  line(60, TOP.y + TOP.h, 1940, TOP.y + TOP.h);
 }
 
-/* ---------- dot style panel (drawn on the canvas) ---------- */
+/* ---------- control panel (drawn on the canvas) ---------- */
 
-const PANEL = { x: 40, y: 1476, w: 1920, h: 484 };
+// Taller in Type view, where its top row holds the type settings.
+const PANEL_TYPE_ROW = 123;
+function panelRect() {
+  const extra = S.view === 'type' ? PANEL_TYPE_ROW : 0;
+  return { x: 40, y: 1424 - extra, w: 1920, h: 548 + extra };
+}
 
 let hits = [];    // clickable areas from the last frame
 let drag = null;  // what the pointer is dragging
 
 function drawPanel() {
-  const p = PANEL;
+  const p = panelRect();
   noStroke();
   fill(24, 24, 24, 235);
   rect(p.x, p.y, p.w, p.h);
@@ -567,11 +566,23 @@ function drawPanel() {
   // Swallow clicks on the panel's empty space.
   hits.push({ kind: 'panel', x: p.x, y: p.y, w: p.w, h: p.h });
 
-  const colW = 580;
+  const colW = 565;
   const gutter = 60;
-  const x0 = p.x + 50;
+  const x0 = p.x + 52;
   const xs = [x0, x0 + colW + gutter, x0 + (colW + gutter) * 2];
-  const ys = [p.y + 36, p.y + 120, p.y + 204, p.y + 288, p.y + 372];
+
+  let top = p.y;
+  if (S.view === 'type') {
+    // Type settings, one row across the top.
+    slider(xs[0], p.y + 38, colW, 'Letter spacing', 'tracking', true);
+    slider(xs[1], p.y + 38, colW, 'Line height', 'leading', true);
+    slider(xs[2], p.y + 38, colW, 'Font size', 'size', true);
+    stroke(LINE);
+    strokeWeight(2);
+    line(x0, p.y + 136, x0 + colW * 3 + gutter * 2, p.y + 136);
+    top += PANEL_TYPE_ROW;
+  }
+  const ys = [top + 38, top + 122, top + 206, top + 290, top + 374];
 
   // Column 1: fill and stroke
   toggleRow(xs[0], ys[0], colW, 'Fill', 'fillOn');
@@ -590,8 +601,41 @@ function drawPanel() {
   slider(xs[2], ys[1], colW, 'Width', 'w', true);
   slider(xs[2], ys[2], colW, 'Height', 'h', true);
   slider(xs[2], ys[3], colW, 'Rotation', 'rotation', true);
-  button(xs[2], ys[4] + 6, 270, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
-  button(xs[2] + 310, ys[4] + 6, 270, 'Reset', resetDesign, false);
+  button(xs[2], ys[4] + 6, 262, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
+  button(xs[2] + 303, ys[4] + 6, 262, 'Reset', resetDesign, false);
+
+  drawShortcuts(x0, top + 473);
+}
+
+// Keyboard shortcuts as little key caps. They pause while you're typing, so they dim then.
+function drawShortcuts(x, y) {
+  const live = !isTyping();
+  const keys = [['S', 'save PNG'], ['H', 'hide UI'], ['F', 'fullscreen']];
+  textSize(20);
+  for (const [k, what] of keys) {
+    noStroke();
+    fill(live ? '#555' : '#3a3a3a');
+    rect(x + 2, y + 2, 34, 35);          // the key's shadow
+    fill(BG);
+    stroke(live ? DIM : '#555');
+    strokeWeight(2);
+    rect(x, y, 34, 35);                  // the key
+    noStroke();
+    fill(live ? INK : DIM);
+    textFont(MONO);
+    textAlign(CENTER, CENTER);
+    text(k, x + 17, y + 17);
+    textFont('sans-serif');
+    fill(DIM);
+    textAlign(LEFT, CENTER);
+    text(what, x + 34 + 11, y + 17);
+    x += 34 + 11 + textWidth(what) + 40;
+  }
+  if (!live) {
+    fill(DIM);
+    textAlign(LEFT, CENTER);
+    text('· paused while typing', x - 16, y + 17);
+  }
 }
 
 // Reset puts the dot design back to the Figma defaults and keeps the view and type settings.
@@ -611,13 +655,16 @@ function label(x, y, txt, on = true) {
 
 function toggleRow(x, y, w, name, key) {
   label(x, y + 22, name);
-  const on = S[key];
+  toggleSwitch(x + w - 96, y, S[key]);
+  hits.push({ kind: 'tap', x: x, y: y - 8, w: w, h: 64, fn: () => { S[key] = !S[key]; persist(); } });
+}
+
+// Square 96×48 switch, with ON / OFF in the free side (as in Figma's UI / Toggle).
+function toggleSwitch(tx, ty, on) {
   const tw = 96, th = 48;
-  const tx = x + w - tw, ty = y;
   noStroke();
   fill(on ? ACTIVE : '#444');
   rect(tx, ty, tw, th);
-  // Square knob, with ON / OFF in the free side (as in Figma's UI / Toggle).
   fill(on ? '#444' : '#ffffff');
   rect(on ? tx + 54 : tx + 6, ty + 6, 36, 36);
   fill(on ? '#000000' : '#ffffff');
@@ -626,7 +673,6 @@ function toggleRow(x, y, w, name, key) {
   textAlign(LEFT, CENTER);
   text(on ? 'ON' : 'OFF', on ? tx + 16 : tx + 48, ty + th / 2);
   textFont('sans-serif');
-  hits.push({ kind: 'tap', x: x, y: ty - 8, w: w, h: th + 16, fn: () => { S[key] = !S[key]; persist(); } });
 }
 
 function swatchRow(x, y, key, enabled) {
