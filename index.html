@@ -21,6 +21,7 @@
     .meta { padding: 10px 12px; }
     .meta b { display: block; font-weight: 600; }
     .meta small { color: var(--dim); }
+    .meta time { display: block; color: var(--dim); font-size: 12px; margin-bottom: 2px; }
     a.card:hover { border-color: var(--accent); }
     .card.empty { opacity: 0.45; }
     .phone { position: fixed; right: 16px; bottom: 16px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font-size: 12px; }
@@ -41,6 +42,7 @@
   <script>
     const TOTAL = 30;
     const pad = (n) => String(n).padStart(2, '0');
+    const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
     fetch('challenges.json', { cache: 'no-store' })
@@ -57,7 +59,7 @@
           const href = `challenges/${encodeURIComponent(c.slug)}/`;
           return `<a class="card" href="${href}">
             <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
-            <div class="meta"><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
+            <div class="meta">${c.date ? `<time datetime="${esc(c.date)}">${fmtDate(c.date)}</time>` : ''}<b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
           </a>`;
         }).join('');
       });
