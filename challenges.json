@@ -1,7 +1,15 @@
 [
   {
     "number": 1,
-    "slug": "01-color-and-food",
+    "slug": "01-5x5-grid-font",
+    "title": "Lateralus",
+    "stack": "p5",
+    "date": "2026-11-21",
+    "description": "A 5×5 dot-grid font: every letter and numeral, a type tester, and controls for the dots."
+  },
+  {
+    "number": 2,
+    "slug": "02-color-and-food",
     "title": "Color and food",
     "stack": "p5",
     "date": "2026-11-20",
