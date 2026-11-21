@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CC2026</title>
+  <style>
+    :root { --bg: #111; --fg: #eee; --dim: #777; --line: #2a2a2a; --accent: #ff5a36; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    header { padding: 48px 24px 24px; max-width: 1200px; margin: 0 auto; }
+    h1 { margin: 0; font-size: 40px; letter-spacing: -0.02em; }
+    header p { margin: 8px 0 0; color: var(--dim); }
+    .progress { margin-top: 16px; height: 4px; background: var(--line); }
+    .progress span { display: block; height: 100%; background: var(--accent); }
+    main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .card { display: block; color: inherit; text-decoration: none; border: 1px solid var(--line); }
+    .thumb { aspect-ratio: 1; background: #181818; display: grid; place-items: center; overflow: hidden; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb .n { font-size: 48px; color: #333; }
+    .meta { padding: 10px 12px; }
+    .meta b { display: block; font-weight: 600; }
+    .meta small { color: var(--dim); }
+    a.card:hover { border-color: var(--accent); }
+    .card.empty { opacity: 0.45; }
+    .phone { position: fixed; right: 16px; bottom: 16px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font-size: 12px; }
+    .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
+    .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
+    .phone p a { color: var(--fg); }
+    .phone button { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--dim); font: inherit; cursor: pointer; }
+    .phone button:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CC2026</h1>
+    <p>30 interactive sketches · 2000 × 2000</p>
+    <div class="progress"><span id="bar" style="width:0"></span></div>
+  </header>
+  <main id="grid"></main>
+  <script>
+    const TOTAL = 30;
+    const pad = (n) => String(n).padStart(2, '0');
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+    fetch('challenges.json', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((list) => {
+        const byNum = new Map(list.map((c) => [c.number, c]));
+        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL).length;
+        document.getElementById('bar').style.width = (done / TOTAL) * 100 + '%';
+        const nums = [...new Set([...list.map((c) => c.number), ...Array.from({ length: TOTAL }, (_, i) => i + 1)])].sort((a, b) => a - b);
+
+        document.getElementById('grid').innerHTML = nums.map((n) => {
+          const c = byNum.get(n);
+          if (!c) return `<div class="card empty"><div class="thumb"><span class="n">${pad(n)}</span></div><div class="meta"><b>${pad(n)}</b><small>to come</small></div></div>`;
+          const href = `challenges/${encodeURIComponent(c.slug)}/`;
+          return `<a class="card" href="${href}">
+            <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
+            <div class="meta"><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
+          </a>`;
+        }).join('');
+      });
+
+    // Local only: a QR code that opens this gallery on a phone on the same Wi‑Fi.
+    // npm run serve provides /__lan.json; the deployed site never shows this.
+    if (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+      fetch('/__lan.json', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : { urls: [] }))
+        .then(({ urls }) => {
+          if (!urls || !urls.length) return;
+          const s = document.createElement('script');
+          s.src = 'assets/qrcode.js';
+          s.onload = () => {
+            const url = urls[0];
+            const qr = qrcode(0, 'M');
+            qr.addData(url);
+            qr.make();
+            const box = document.createElement('aside');
+            box.className = 'phone';
+            box.innerHTML = `<button aria-label="Hide QR code">×</button><img alt="QR code for ${esc(url)}" src="${qr.createDataURL(4, 2)}"><p>Open on your phone<br><a href="${esc(url)}">${esc(url)}</a></p>`;
+            box.querySelector('button').onclick = () => box.remove();
+            document.body.append(box);
+          };
+          document.head.append(s);
+        })
+        .catch(() => {});
+    }
+  </script>
+</body>
+</html>
