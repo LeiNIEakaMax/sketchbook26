@@ -6,5 +6,13 @@
     "stack": "p5",
     "date": "2026-11-21",
     "description": "Template check: needles turn toward the pointer. Click for a new palette."
+  },
+  {
+    "number": 1,
+    "slug": "01-color-and-food",
+    "title": "Color and food",
+    "stack": "p5",
+    "date": "2026-11-21",
+    "description": "Move across the canvas: x picks a color, y picks a food."
   }
 ]
