@@ -10,6 +10,20 @@
     canvas.stage { display: block; touch-action: none; }
     .back { position: fixed; top: 8px; left: 12px; font: 12px/1.4 ui-monospace, monospace; color: #888; text-decoration: none; }
     .back:hover { color: #eee; }
+
+    /* Small segmented toggles, bottom centre */
+    .controls { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+      display: flex; gap: 8px; font: 11px/1 ui-monospace, monospace; }
+    .seg { display: flex; border: 1px solid #3a3a3a; border-radius: 999px; padding: 2px; }
+    .seg button { all: unset; cursor: pointer; padding: 4px 9px; border-radius: 999px; color: #777;
+      -webkit-tap-highlight-color: transparent; }
+    .seg button:hover { color: #ddd; }
+    .seg button[aria-pressed="true"] { background: #fefefe; color: #131313; }
+    .seg button:focus-visible { outline: 1px solid #fefefe; outline-offset: 1px; }
+    .seg[hidden] { display: none; }
+    .note { position: fixed; left: 50%; bottom: 38px; transform: translateX(-50%); max-width: 90vw;
+      font: 11px/1.4 ui-monospace, monospace; color: #999; text-align: center; }
+    .note:empty { display: none; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,5 +34,16 @@
 </head>
 <body>
   <a class="back" href="../../">← CC2026</a>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Display">
+      <button type="button" data-display="words">Words</button>
+      <button type="button" data-display="percent">Percent</button>
+    </div>
+    <div class="seg" role="group" aria-label="Input" id="input-seg" hidden>
+      <button type="button" data-input="drag">Drag</button>
+      <button type="button" data-input="tilt">Tilt</button>
+    </div>
+  </div>
+  <p class="note" id="note" role="status"></p>
 </body>
 </html>
