@@ -6,15 +6,16 @@
 // the canvas minus a 256px margin on every side (1488×1488), split into equal
 // bands, one per list item. Outside the margin values clamp to the ends.
 //
-// Display: "Words" shows a color (X) and a food (Y); "Percent" shows how far
+// Display: "Words" shows a zodiac sign (X) and a food (Y); "Percent" shows how far
 // across the interactive area the pointer is, e.g. "X - 36%" / "Y - 74%".
 // Input (touch devices only): "Drag" follows your finger; "Tilt" uses the
 // phone's orientation (left/right tilt → X, forward/back tilt → Y), centred
 // on however you were holding it when you switched Tilt on.
 
-const COLORS = [
-  'Maroon', 'Saffron', 'Teal', 'Lavender', 'Ochre', 'Crimson',
-  'Indigo', 'Coral', 'Olive', 'Cerulean', 'Magenta', 'Ivory',
+// The 12 zodiac signs, in calendar order from the spring equinox.
+const SIGNS = [
+  'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
 ];
 
 const FOODS = [
@@ -32,7 +33,7 @@ const BG = '#131313';
 const INK = '#fefefe';
 const FONT = 'Inria Serif';
 const FONT_SIZE = 219 * K;               // 219px in Figma
-const UPPER_Y = (707.45 + 263 / 2) * K;  // centre of the "Maroon" text box
+const UPPER_Y = (707.45 + 263 / 2) * K;  // centre of the upper text box in Figma
 const LOWER_Y = (1027.55 + 263 / 2) * K; // centre of the "Asparagus" text box
 
 // Tilt: degrees either side of the starting pose that cover the whole area.
@@ -80,7 +81,7 @@ function draw() {
   const { x, y } = pointer();
   const upper = state.display === 'percent'
     ? `X - ${Math.round(unit(x) * 100)}%`
-    : COLORS[band(x, COLORS.length)];
+    : SIGNS[band(x, SIGNS.length)];
   const lower = state.display === 'percent'
     ? `Y - ${Math.round(unit(y) * 100)}%`
     : FOODS[band(y, FOODS.length)];
