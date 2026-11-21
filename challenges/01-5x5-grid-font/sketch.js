@@ -637,8 +637,12 @@ function swatchRow(x, y, key, enabled) {
     stroke(picked ? '#ffffff' : LINE);
     strokeWeight(picked ? 4 : 2);
     fill(enabled ? c : dimmed(c));
-    rect(sx, y, size, size);
-    hits.push({ kind: 'tap', x: sx - 8, y: y - 8, w: size + 16, h: size + 16, fn: () => { S[key] = c; persist(); } });
+    // Lifts 12px while hovered. The hit area stays put so the swatch doesn't flicker.
+    const area = { x: sx - 8, y: y - 8, w: size + 16, h: size + 16 };
+    const hot = showUI && !drag && inside(mouseX, mouseY, area, 0);
+    const lift = ease(`swatch:${key}:${c}`, hot ? SWATCH_HOVER_LIFT : 0);
+    rect(sx, y - lift, size, size);
+    hits.push({ kind: 'tap', ...area, fn: () => { S[key] = c; persist(); } });
   });
 }
 
@@ -704,13 +708,22 @@ function slider(x, y, w, name, key, enabled) {
 
 // Each slider knob eases towards its target angle (instantly with reduced motion).
 const KNOB_HOVER_TURN = 135; // degrees
+const SWATCH_HOVER_LIFT = 12; // px
 const knobAngles = {};
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function knobAngle(key, target) {
-  const cur = knobAngles[key] || 0;
-  const next = reduceMotion ? target : cur + (target - cur) * 0.35;
-  knobAngles[key] = Math.abs(next - target) < 0.5 ? target : next;
-  return knobAngles[key];
+  return ease('knob:' + key, target, knobAngles, key);
+}
+
+// Hover animations: each value eases towards its target (instantly with reduced motion).
+const eased = {};
+function ease(id, target, store, storeKey) {
+  const cur = eased[id] || 0;
+  let next = reduceMotion ? target : cur + (target - cur) * 0.35;
+  if (Math.abs(next - target) < 0.05) next = target;
+  eased[id] = next;
+  if (store) store[storeKey] = next;
+  return next;
 }
 
 function button(x, y, w, txt, fn, on) {
