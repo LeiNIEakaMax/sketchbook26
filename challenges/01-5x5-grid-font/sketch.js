@@ -158,6 +158,7 @@ function setup() {
   stage({ exportKey: null }); // S is handled below so the PNG leaves the controls out
   textFont('sans-serif');
   frameRate(30);
+  try { document.fonts.load(`21px "${MONO}"`); } catch (e) { /* falls back to the default font */ }
   setupTextarea();
 }
 
@@ -336,12 +337,12 @@ function drawAllView(area) {
       if (hover && hover.kind === 'glyph' && hover.ch === ch) {
         noStroke();
         fill(255, 14);
-        rect(cell.x + 6, cell.y + 6, cell.w - 12, cell.h - 12, 14);
+        rect(cell.x + 6, cell.y + 6, cell.w - 12, cell.h - 12);
       }
       drawGlyph(ch, cx - gw / 2, top, scale, S.ghost && showUI);
       if (showUI) {
         noStroke();
-        fill(S.letter === ch ? '#0d99ff' : '#8a8a8a');
+        fill(S.letter === ch ? ACTIVE : DIM);
         textSize(22);
         textAlign(CENTER, TOP);
         text(ch, cx, top + gh + 10);
@@ -456,7 +457,11 @@ function isTyping() {
 
 /* ---------- container frame + handles (Letter view) ---------- */
 
-const SELECT = '#0d99ff';
+// Interface tokens (from the Figma components, 2026-11-21: everything square,
+// white as the active colour). Change ACTIVE to recolour every active state.
+const ACTIVE = '#ffffff';    // selected segment, on button, toggle on, slider fill, selection box
+const ON_ACTIVE = '#333333'; // text drawn on ACTIVE
+const MONO = 'JetBrains Mono'; // toggle ON / OFF labels
 const HANDLE = 22;
 
 // Handles: sx/sy say which way a handle stretches (−1, 0, 1).
@@ -475,12 +480,12 @@ function handles() {
 function drawFrame() {
   const b = letterBox();
   noFill();
-  stroke(SELECT);
+  stroke(ACTIVE);
   strokeWeight(2);
   rect(b.x, b.y, b.w, b.h);
   for (const h of handles()) {
-    fill(255);
-    stroke(SELECT);
+    fill(BG);
+    stroke(ACTIVE);
     strokeWeight(3);
     rectMode(CENTER);
     rect(h.x, h.y, HANDLE, HANDLE);
@@ -492,9 +497,9 @@ function drawFrame() {
   textSize(24);
   const tw = textWidth(sizeTxt) + 24;
   noStroke();
-  fill(SELECT);
-  rect(MID.x - tw / 2, b.y + b.h + 18, tw, 38, 6);
-  fill(255);
+  fill(ACTIVE);
+  rect(MID.x - tw / 2, b.y + b.h + 18, tw, 38);
+  fill(ON_ACTIVE);
   textAlign(CENTER, CENTER);
   text(sizeTxt, MID.x, b.y + b.h + 37);
 }
@@ -554,11 +559,11 @@ function drawPanel() {
   const p = PANEL;
   noStroke();
   fill(24, 24, 24, 235);
-  rect(p.x, p.y, p.w, p.h, 24);
+  rect(p.x, p.y, p.w, p.h);
   stroke(LINE);
   strokeWeight(2);
   noFill();
-  rect(p.x, p.y, p.w, p.h, 24);
+  rect(p.x, p.y, p.w, p.h);
   // Swallow clicks on the panel's empty space.
   hits.push({ kind: 'panel', x: p.x, y: p.y, w: p.w, h: p.h });
 
@@ -610,10 +615,17 @@ function toggleRow(x, y, w, name, key) {
   const tw = 96, th = 48;
   const tx = x + w - tw, ty = y;
   noStroke();
-  fill(on ? SELECT : '#444');
-  rect(tx, ty, tw, th, th / 2);
-  fill(255);
-  circle(on ? tx + tw - th / 2 : tx + th / 2, ty + th / 2, th - 12);
+  fill(on ? ACTIVE : '#444');
+  rect(tx, ty, tw, th);
+  // Square knob, with ON / OFF in the free side (as in Figma's UI / Toggle).
+  fill(on ? '#444' : '#ffffff');
+  rect(on ? tx + 54 : tx + 6, ty + 6, 36, 36);
+  fill(on ? '#000000' : '#ffffff');
+  textFont(MONO);
+  textSize(21);
+  textAlign(LEFT, CENTER);
+  text(on ? 'ON' : 'OFF', on ? tx + 16 : tx + 48, ty + th / 2);
+  textFont('sans-serif');
   hits.push({ kind: 'tap', x: x, y: ty - 8, w: w, h: th + 16, fn: () => { S[key] = !S[key]; persist(); } });
 }
 
@@ -625,7 +637,7 @@ function swatchRow(x, y, key, enabled) {
     stroke(picked ? '#ffffff' : LINE);
     strokeWeight(picked ? 4 : 2);
     fill(enabled ? c : dimmed(c));
-    rect(sx, y, size, size, 12);
+    rect(sx, y, size, size);
     hits.push({ kind: 'tap', x: sx - 8, y: y - 8, w: size + 16, h: size + 16, fn: () => { S[key] = c; persist(); } });
   });
 }
@@ -635,15 +647,15 @@ function segmented(x, y, w, key, options, enabled) {
   const segW = w / options.length;
   noStroke();
   fill('#333');
-  rect(x, y, w, h, 12);
+  rect(x, y, w, h);
   options.forEach((o, i) => {
     const sx = x + i * segW;
     const on = S[key] === o;
     if (on) {
-      fill(enabled ? SELECT : '#555');
-      rect(sx + 4, y + 4, segW - 8, h - 8, 9);
+      fill(enabled ? ACTIVE : '#555');
+      rect(sx + 4, y + 4, segW - 8, h - 8);
     }
-    fill(on ? '#fff' : enabled ? INK : DIM);
+    fill(on ? (enabled ? ON_ACTIVE : INK) : enabled ? INK : DIM);
     textSize(24);
     textAlign(CENTER, CENTER);
     text(o[0].toUpperCase() + o.slice(1), sx + segW / 2, y + h / 2 + 1);
@@ -672,23 +684,22 @@ function slider(x, y, w, name, key, enabled) {
 
   const ty = y + 56;
   const t = constrain((S[key] - lo) / (hi - lo), 0, 1);
-  stroke('#444');
-  strokeWeight(8);
-  line(x, ty, x + w, ty);
-  stroke(enabled ? SELECT : '#666');
-  line(x, ty, x + w * t, ty);
   noStroke();
-  fill(enabled ? '#fff' : '#888');
-  circle(x + w * t, ty, 34);
+  fill('#444');
+  rect(x, ty - 4, w, 8);
+  fill(enabled ? ACTIVE : '#666');
+  rect(x, ty - 4, w * t, 8);
+  fill(enabled ? '#ffffff' : '#888');
+  rect(x + w * t - 18, ty - 18, 36, 36); // square knob
   hits.push({ kind: 'slider', key, trackX: x, trackW: w, x: x - 20, y: y - 6, w: w + 40, h: 84 });
 }
 
 function button(x, y, w, txt, fn, on) {
   const h = 56;
   noStroke();
-  fill(on ? SELECT : '#333');
-  rect(x, y, w, h, 12);
-  fill(on ? '#fff' : INK);
+  fill(on ? ACTIVE : '#333');
+  rect(x, y, w, h);
+  fill(on ? ON_ACTIVE : INK);
   textSize(24);
   textAlign(CENTER, CENTER);
   text(txt, x + w / 2, y + h / 2 + 1);
