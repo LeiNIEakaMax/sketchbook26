@@ -6,7 +6,8 @@
 // the box: each dot is (box size − 4 gaps) / 5 wide and tall, so stretching the
 // box (drag its handles, or use the Width / Height sliders) stretches the dots.
 // Every dot has a fill, an optional stroke (outside / center / inside, with a
-// width), and a corner radius. Gaps are set separately for X and Y.
+// width), a corner radius and a rotation (0–360°, about each dot's centre,
+// counterclockwise like Figma). Gaps are set separately for X and Y.
 //
 // Defaults come from the Figma frame "5×5 / Letters / A" (file cc2026,
 // node 19:89984): 252×300 box, 9px gaps, 15px radius, #d2d2d2 fill and a 6px
@@ -38,6 +39,7 @@ const DEFAULTS = {
   gapX: 9,
   gapY: 9,
   radius: 15,
+  rotation: 0,           // degrees, Figma-style: positive turns counterclockwise
   fillOn: true,
   fill: '#d2d2d2',
   strokeOn: true,
@@ -53,6 +55,7 @@ const RANGES = {
   gapX: [0, 120],
   gapY: [0, 120],
   radius: [0, 200],
+  rotation: [0, 360],
   strokeW: [0, 40],
 };
 
@@ -113,6 +116,8 @@ function drawLetter(ch) {
 function drawDot(d) {
   const ctx = drawingContext;
   const r = Math.min(S.radius, d.w / 2, d.h / 2);
+  ctx.save();
+  rotateAboutCentre(ctx, d);
   if (S.fillOn) {
     ctx.fillStyle = S.fill;
     roundRectPath(ctx, d.x, d.y, d.w, d.h, r);
@@ -140,12 +145,24 @@ function drawDot(d) {
     ctx.stroke();
     ctx.restore();
   }
+  ctx.restore();
+}
+
+// Rotation as in Figma: each dot turns about its own centre, and a positive
+// angle turns it counterclockwise. The dot keeps its size; only its corners move.
+function rotateAboutCentre(ctx, d) {
+  if (!S.rotation) return;
+  const cx = d.x + d.w / 2, cy = d.y + d.h / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(-S.rotation * Math.PI / 180);
+  ctx.translate(-cx, -cy);
 }
 
 function drawGhost(d) {
   const ctx = drawingContext;
   const r = Math.min(S.radius, d.w / 2, d.h / 2);
   ctx.save();
+  rotateAboutCentre(ctx, d);
   ctx.strokeStyle = 'rgba(255,255,255,0.14)';
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 6]);
@@ -216,7 +233,7 @@ function drawFrame() {
 
 /* ---------- control panel (drawn on the canvas) ---------- */
 
-const PANEL = { x: 40, y: 1560, w: 1920, h: 400 };
+const PANEL = { x: 40, y: 1476, w: 1920, h: 484 };
 const INK = '#e8e8e8';
 const DIM = '#8a8a8a';
 const LINE = '#3a3a3a';
@@ -238,7 +255,7 @@ function drawPanel() {
   const gutter = 60;
   const x0 = p.x + 50;
   const xs = [x0, x0 + colW + gutter, x0 + (colW + gutter) * 2];
-  const ys = [p.y + 36, p.y + 120, p.y + 204, p.y + 288];
+  const ys = [p.y + 36, p.y + 120, p.y + 204, p.y + 288, p.y + 372];
 
   // Column 1: fill and stroke
   toggleRow(xs[0], ys[0], colW, 'Fill', 'fillOn');
@@ -256,8 +273,9 @@ function drawPanel() {
   slider(xs[2], ys[0], colW, 'Corner radius', 'radius', true);
   slider(xs[2], ys[1], colW, 'Width', 'w', true);
   slider(xs[2], ys[2], colW, 'Height', 'h', true);
-  button(xs[2], ys[3] + 6, 270, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
-  button(xs[2] + 310, ys[3] + 6, 270, 'Reset', () => { S = { ...DEFAULTS }; persist(); }, false);
+  slider(xs[2], ys[3], colW, 'Rotation', 'rotation', true);
+  button(xs[2], ys[4] + 6, 270, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
+  button(xs[2] + 310, ys[4] + 6, 270, 'Reset', () => { S = { ...DEFAULTS }; persist(); }, false);
 
   textAlign(RIGHT, BOTTOM);
   textSize(20);
@@ -326,7 +344,7 @@ function slider(x, y, w, name, key, enabled) {
   label(x, y + 14, name, enabled);
   textAlign(RIGHT, CENTER);
   fill(enabled ? INK : DIM);
-  text(fmt(S[key]), x + w, y + 14);
+  text(fmt(S[key]) + (key === 'rotation' ? '°' : ''), x + w, y + 14);
 
   const ty = y + 56;
   const t = constrain((S[key] - lo) / (hi - lo), 0, 1);
