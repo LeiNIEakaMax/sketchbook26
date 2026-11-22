@@ -619,18 +619,47 @@ function touchMoved(e) {
   if (e && e.target && e.target.tagName === 'CANVAS') return false;
 }
 
-// Scrolling steps through the fonts, one per notch (trackpads add up their small deltas).
-let wheelAcc = 0;
+// Scrolling steps through the fonts: one font per wheel notch.
+//
+// The browser reports scrolling as wheel events with a deltaY (positive = down).
+// What one notch gives varies: about 100px in Chrome/Edge on Windows, 3 "lines"
+// in Firefox (deltaMode 1), and on macOS anything from ~4 to 100+ px, often
+// split over several events because of smooth scrolling and acceleration.
+// Trackpads send a long stream of small deltas. So instead of "N px = 1 step":
+//   - the first event after a pause is a notch: step once, straight away;
+//   - while events keep coming (a fast roll or a trackpad swipe), step again
+//     only every WHEEL_STEP_PX of travel and at most every WHEEL_MIN_MS.
+const WHEEL_GAP_MS = 140;   // quiet time that ends a burst
+const WHEEL_STEP_PX = 120;  // extra travel per extra step inside a burst
+const WHEEL_MIN_MS = 90;    // never faster than this
+const wheel = { last: 0, lastStep: 0, acc: 0, dir: 0 };
 function mouseWheel(e) {
-  wheelAcc += e.delta;
-  const STEP = 100; // one mouse-wheel notch
-  while (Math.abs(wheelAcc) >= STEP) {
-    const dir = Math.sign(wheelAcc);
-    wheelAcc -= dir * STEP;
-    S.font = (S.font + dir + FONTS.length) % FONTS.length;
+  const now = performance.now();
+  // Normalise to pixels (Firefox can report lines or pages).
+  const px = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 800 : 1);
+  if (!px) return false;
+  const dir = Math.sign(px);
+  const fresh = now - wheel.last > WHEEL_GAP_MS || dir !== wheel.dir;
+  wheel.last = now;
+  wheel.dir = dir;
+  if (fresh) {
+    wheel.acc = 0;
+    stepFont(dir);
+    wheel.lastStep = now;
+  } else {
+    wheel.acc += px;
+    if (Math.abs(wheel.acc) >= WHEEL_STEP_PX && now - wheel.lastStep >= WHEEL_MIN_MS) {
+      wheel.acc -= dir * WHEEL_STEP_PX;
+      stepFont(dir);
+      wheel.lastStep = now;
+    }
   }
+  return false; // don't scroll the page
+}
+
+function stepFont(dir) {
+  S.font = (S.font + dir + FONTS.length) % FONTS.length;
   persist();
-  return false;
 }
 
 function keyPressed() {
