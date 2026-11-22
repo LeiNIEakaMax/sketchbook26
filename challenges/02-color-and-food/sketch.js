@@ -1,5 +1,5 @@
 // Color and food
-// Canvas is 2000×2000. mouseX / mouseY are already in canvas coordinates.
+// Canvas is 2048×2048. mouseX / mouseY are already in canvas coordinates.
 // S saves a PNG (without the controls), F toggles fullscreen, H hides the
 // controls, P switches Words / Percent.
 //
@@ -54,18 +54,17 @@ const WHITE = '#ffffff';
 const BLACK = '#000000';
 const PLAIN_BG = '#131313'; // background when Color is off (the original Figma frame)
 
-// Type, from the Figma frame (2048×2048) scaled to the 2000 canvas.
+// Type, from the Figma frame (2048×2048), now 1:1 with the canvas.
 const FONT = 'LT Remark';                       // self-hosted, see fonts/
-const K = STAGE_SIZE / 2048;
-const TEXT_MID = ((707.45 + 1027.55) / 2 + 263 / 2) * K; // halfway between the two lines
+const TEXT_MID = (707.45 + 1027.55) / 2 + 263 / 2; // halfway between the two lines (999)
 
 const DEFAULTS = {
   display: 'words',   // 'words' | 'percent'
   color: true,        // background follows the colour grid
   fade: 350,          // ms for a colour change
-  size: 214,          // font size, px (219 in Figma × 2000/2048)
-  lineGap: 313,       // distance between the two lines' centres
-  margin: 256,        // dead zone round the interactive area
+  size: 219,          // font size, px (as in Figma)
+  lineGap: 320,       // distance between the two lines' centres (as in Figma)
+  margin: 256,        // dead zone round the interactive area (12 bands of 128px)
   grid: false,        // show the 12×12 bands
   panel: true,        // show the control panel
 };
@@ -86,7 +85,7 @@ const TILT_EASE = 0.2;
 const CAN_TILT = (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)
   && 'DeviceOrientationEvent' in window;
 
-const PREF_KEY = 'cc02.settings';
+const PREF_KEY = 'cc02.settings.2048'; // new key: sizes changed with the 2048 canvas
 let S = loadSettings();
 let showUI = true;
 
@@ -116,7 +115,7 @@ function band(v, count) {
 // so using a control doesn't change the words or colour.
 function pointer() {
   if (state.input === 'tilt') return state.tilt;
-  if (!(showUI && overControls(mouseX, mouseY))) state.held = { x: mouseX, y: mouseY };
+  if (!(showUI && overControls(uiX(), uiY()))) state.held = { x: mouseX, y: mouseY };
   return state.held;
 }
 
@@ -166,8 +165,12 @@ function draw() {
   text(lower, width / 2, TEXT_MID + S.lineGap / 2);
 
   if (showUI) {
+    // The controls are laid out on a 2000 grid (as in Lateralus) and scaled up.
+    push();
+    scale(UI);
     drawTopBar(ink);
     if (S.panel) drawPanel();
+    pop();
   }
   updateCursor();
 }
@@ -242,6 +245,11 @@ function syncPage(bg, ink) {
 }
 
 /* ---------- interface tokens (as in Lateralus) ---------- */
+
+// Controls are laid out in a 2000×2000 space and scaled to the canvas.
+const UI = STAGE_SIZE / 2000;
+function uiX() { return mouseX / UI; }
+function uiY() { return mouseY / UI; }
 
 const ACTIVE = '#ffffff';    // selected segment, on button, toggle on, slider fill
 const ON_ACTIVE = '#333333'; // text drawn on ACTIVE
@@ -455,7 +463,7 @@ function slider(x, y, w, name, key, enabled) {
   rect(x, ty - 4, w * t, 8);
   // Square knob that turns 135° into a diamond while the slider is hovered or dragged.
   const area = { x: x - 20, y: y - 6, w: w + 40, h: 84 };
-  const hot = enabled && ((drag && drag.key === key) || (!drag && inside(mouseX, mouseY, area, 0)));
+  const hot = enabled && ((drag && drag.key === key) || (!drag && inside(uiX(), uiY(), area, 0)));
   const a = ease('knob:' + key, hot ? KNOB_HOVER_TURN : 0);
   fill(enabled ? '#ffffff' : '#888');
   push();
@@ -512,7 +520,7 @@ function hitAt(x, y) {
 
 function mousePressed() {
   if (!showUI) return;
-  const h = hitAt(mouseX, mouseY);
+  const h = hitAt(uiX(), uiY());
   if (!h) return;
   if (h.kind === 'tap') {
     h.fn();
@@ -536,12 +544,12 @@ function mouseReleased() {
 
 function dragSlider() {
   const [lo, hi, step] = RANGES[drag.key];
-  const t = constrain((mouseX - drag.trackX) / drag.trackW, 0, 1);
+  const t = constrain((uiX() - drag.trackX) / drag.trackW, 0, 1);
   S[drag.key] = Number((Math.round((lo + t * (hi - lo)) / step) * step).toFixed(2));
 }
 
 function updateCursor() {
-  const target = drag || (showUI ? hitAt(mouseX, mouseY) : null);
+  const target = drag || (showUI ? hitAt(uiX(), uiY()) : null);
   let c = 'default';
   if (target) c = target.kind === 'slider' ? 'ew-resize' : target.kind === 'panel' ? 'default' : 'pointer';
   cursor(c);
@@ -620,7 +628,9 @@ function note(msg) {
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
-    const old = localStorage.getItem('cc02.display'); // from before the panel
+    // Keep Words/Percent from earlier versions; sizes start fresh at 2048.
+    const prev = JSON.parse(localStorage.getItem('cc02.settings') || '{}');
+    const old = prev.display || localStorage.getItem('cc02.display');
     if (old && !saved.display) saved.display = old;
     return { ...DEFAULTS, ...saved };
   } catch (e) {

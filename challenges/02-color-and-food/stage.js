@@ -2,14 +2,14 @@
  * stage.js — the shared CC2026 stage for p5.js (global mode).
  *
  * Call `stage()` instead of `createCanvas()` in setup(). You get:
- *   - a fixed 2000×2000 canvas at pixelDensity(1), so exports are exactly 2000×2000
+ *   - a fixed 2048×2048 canvas at pixelDensity(1), so exports are exactly 2048×2048
  *   - the canvas scaled with CSS to fit the window (mouseX / mouseY / touches
- *     stay in 0–2000 canvas coordinates, p5 maps them for you)
+ *     stay in 0–2048 canvas coordinates, p5 maps them for you)
  *   - press S to save a PNG, press F for fullscreen
  *
  * This file is copied into each challenge, so a challenge can change it freely.
  */
-const STAGE_SIZE = 2000;
+const STAGE_SIZE = 2048;
 
 function stage(opts = {}) {
   const { exportKey = 's', fullscreenKey = 'f', margin = 24, renderer } = opts;
