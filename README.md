@@ -1,4 +1,4 @@
-# CC2026
+# sketchbook26
 
 30 interactive creative-coding challenges. Every piece is a 2048 × 2048 canvas, runs in the browser, and lives on one gallery site.
 
@@ -39,10 +39,18 @@ A challenge only needs an `index.html` in its folder. To use three.js, plain Can
 
 ## Workflow
 
-1. Start a new thread in the CC2026 project for each challenge.
+1. Start a new thread in the sketchbook26 project for each challenge.
 2. Work on a short-lived branch, for example `challenge/01-gravity-wells`.
 3. Merge it into `main` when you're done. The site redeploys on every push to `main`.
 
-## Deploy (one-time setup)
+## Deploy
 
-In the GitHub repo, open **Settings → Pages** and set **Source** to **GitHub Actions**. After that, `.github/workflows/pages.yml` publishes the repo to `https://<user>.github.io/cc2026/` on each push to `main`.
+The site lives at **https://sketchbook26.leitothemax.com**. `.github/workflows/pages.yml` publishes the repo on each push to `main`.
+
+One-time setup (already done once, kept here for reference):
+
+1. GitHub repo → **Settings → Pages** → **Source**: **GitHub Actions**.
+2. DNS for leitothemax.com: a `CNAME` record, name `sketchbook26`, value `leinieakamax.github.io`.
+3. **Settings → Pages** → **Custom domain**: `sketchbook26.leitothemax.com`, then tick **Enforce HTTPS** once the certificate is ready.
+
+The `CNAME` file in the repo root holds the same domain. All links on the site are relative, so the subdomain root just works.

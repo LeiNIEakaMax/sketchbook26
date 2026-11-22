@@ -53,7 +53,7 @@ createServer(async (req, res) => {
     res.writeHead(404).end('Not found');
   }
 }).listen(port, '0.0.0.0', () => {
-  console.log(`CC2026 at http://localhost:${port}`);
+  console.log(`sketchbook26 at http://localhost:${port}`);
   const lan = lanAddresses();
   if (lan.length) console.log(`On your phone (same Wi‑Fi): ${lan.join('  ')}`);
   else console.log('No LAN address found, so phones can’t reach this machine right now.');
