@@ -40,6 +40,10 @@
     { id: 'apple', name: 'Homemade Apple', family: "'Homemade Apple', cursive", lh: 27 },
     { id: 'salt', name: 'Rock Salt', family: "'Rock Salt', cursive", lh: 27 },
   ];
+  // French month abbreviations for the date stamp, as Max spelled them.
+  const MONTHS = ['JAN.', 'FEV.', 'MARS', 'AVR.', 'MAI', 'JUIN', 'JUIL.', 'AOUT', 'SEP.', 'OCT.', 'NOV.', 'DEC.'];
+  const today = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+  const stamp = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${String(d).padStart(2, '0')} ${MONTHS[m - 1]} ${y}`; };
   const fontOf = (id) => FONTS.find((f) => f.id === id) || FONTS[0];
   const GRAB_FROM = 0.45;    // the sheet can only be grabbed below this fraction of its height
   const path = location.pathname.replace(/index\.html$/, '').replace(/\/*$/, '/');
@@ -84,6 +88,9 @@
     font-size: 17px; line-height: 22px; font-family: 'Shantell Sans', cursive; overflow-wrap: anywhere; white-space: pre-wrap;
     pointer-events: none; -webkit-user-select: text; user-select: text; }
   .sb26 .sb-editing .sb-ta { pointer-events: auto; }
+  /* date stamp, bottom right (Figma "Sticky / Note", node 43:61977) */
+  .sb26 .sb-date { position: absolute; right: 11px; bottom: 0; height: 23px; line-height: 23px; pointer-events: none; white-space: nowrap;
+    font: 500 9pt/23px 'Barlow Condensed', 'Arial Narrow', sans-serif; color: rgba(29,26,16,.6); }
   .sb26 .sb-f-apple .sb-ta { font-family: 'Homemade Apple', cursive; line-height: 26px; }
   .sb26 .sb-f-salt .sb-ta { font-family: 'Rock Salt', cursive; line-height: 26px; }
   .sb26 .sb-ta::placeholder { color: rgba(60,50,10,.35); }
@@ -159,7 +166,7 @@
     if (/Shantell\+Sans/.test(have)) return;
     const l = document.createElement('link');
     l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Shantell+Sans&family=Homemade+Apple&family=Rock+Salt&display=swap';
+    l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Shantell+Sans&family=Homemade+Apple&family=Rock+Salt&family=Barlow+Condensed:wght@500&display=swap';
     document.head.append(l);
   }
 
@@ -224,7 +231,7 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   function save() {
-    store.set(KEY, notes.map(({ id, fx, py, r, text, z, f }) => ({ id, fx, py: Math.round(py), r, text, z, f })));
+    store.set(KEY, notes.map(({ id, fx, py, r, text, z, f, d }) => ({ id, fx, py: Math.round(py), r, text, z, f, d })));
     updateCount();
   }
   let saveTimer = 0;
@@ -268,7 +275,7 @@
   const rest = (n) => `rotate(${n.r}deg)`;
 
   function makeNote(data) {
-    const n = { id: data.id || uid(), fx: data.fx, py: data.py ?? data.fy * window.innerHeight, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ, f: fontOf(data.f || font).id };
+    const n = { id: data.id || uid(), fx: data.fx, py: data.py ?? data.fy * window.innerHeight, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ, f: fontOf(data.f || font).id, d: /^\d{4}-\d\d-\d\d$/.test(data.d || '') ? data.d : today() };
     topZ = Math.max(topZ, n.z);
     n.el = el('div', `sb-paper sb-note sb-f-${n.f}`);
     n.ta = el('textarea', 'sb-ta');
@@ -276,7 +283,9 @@
     n.ta.spellcheck = false;
     n.ta.setAttribute('aria-label', 'Sticky note');
     n.ta.tabIndex = -1;
-    n.el.append(n.ta);
+    const date = el('div', 'sb-date');
+    date.textContent = stamp(n.d);
+    n.el.append(n.ta, date);
     n.el.style.zIndex = n.z;
     n.el.style.transform = rest(n);
     layer.append(n.el);
