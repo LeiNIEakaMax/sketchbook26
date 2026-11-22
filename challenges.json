@@ -14,5 +14,13 @@
     "stack": "p5",
     "date": "2026-11-20",
     "description": "Move across the canvas: x picks a color, y picks a food."
+  },
+  {
+    "number": 3,
+    "slug": "03-tilt-cursor",
+    "title": "Tilt cursor",
+    "stack": "p5",
+    "date": "2026-11-22",
+    "description": "Tilt your phone to steer a CAD crosshair, with the live gyro numbers on screen."
   }
 ]
