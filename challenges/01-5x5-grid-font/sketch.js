@@ -1,5 +1,5 @@
 // Lateralus, a 5x5 grid font
-// Canvas is 2000×2000. mouseX / mouseY are already in canvas coordinates.
+// Canvas is 2048×2048. mouseX / mouseY are already in canvas coordinates.
 // S saves a PNG (without the controls), F toggles fullscreen, H hides the controls
 // (these keys are ignored while you are typing in the Type view).
 //
@@ -105,7 +105,8 @@ const ROWS = 5;
 /* ---------- settings ---------- */
 
 const BG = '#242424';
-const MID = { x: 1000, y: 1000 }; // the Letter view's centre, as in Figma
+const W = 2048; // canvas size (STAGE_SIZE in stage.js)
+const MID = { x: W / 2, y: W / 2 }; // the Letter view's centre
 
 const DEFAULTS = {
   // dot design (master, at 1:1 in the Letter view)
@@ -185,8 +186,8 @@ function draw() {
 // Where All and Type draw: under the header, above the control panel if it's open.
 function contentArea() {
   const top = 340;
-  const bottom = S.panel ? panelRect().y - 40 : 1950;
-  return { x: 80, y: top, w: 1840, h: bottom - top };
+  const bottom = S.panel ? panelRect().y - 40 : W - 50;
+  return { x: 80, y: top, w: W - 160, h: bottom - top };
 }
 
 /* ---------- glyph drawing ---------- */
@@ -527,9 +528,9 @@ function drawTopBar() {
   textAlign(LEFT, CENTER);
   text('LATERALUS', 60, mid);
 
-  segmented(770, mid - 28, 460, 'view', ['letter', 'all', 'type'], true);
+  segmented(W / 2 - 230, mid - 28, 460, 'view', ['letter', 'all', 'type'], true);
 
-  const tx = 1940 - 96;
+  const tx = W - 60 - 96;
   fill(INK);
   textSize(26);
   textAlign(RIGHT, CENTER);
@@ -539,7 +540,7 @@ function drawTopBar() {
 
   stroke(LINE);
   strokeWeight(2);
-  line(60, TOP.y + TOP.h, 1940, TOP.y + TOP.h);
+  line(60, TOP.y + TOP.h, W - 60, TOP.y + TOP.h);
 }
 
 /* ---------- control panel (drawn on the canvas) ---------- */
@@ -548,7 +549,8 @@ function drawTopBar() {
 const PANEL_TYPE_ROW = 123;
 function panelRect() {
   const extra = S.view === 'type' ? PANEL_TYPE_ROW : 0;
-  return { x: 40, y: 1424 - extra, w: 1920, h: 548 + extra };
+  const h = 548 + extra;
+  return { x: 40, y: W - 28 - h, w: W - 80, h };
 }
 
 let hits = [];    // clickable areas from the last frame
@@ -566,9 +568,9 @@ function drawPanel() {
   // Swallow clicks on the panel's empty space.
   hits.push({ kind: 'panel', x: p.x, y: p.y, w: p.w, h: p.h });
 
-  const colW = 565;
   const gutter = 60;
   const x0 = p.x + 52;
+  const colW = (p.w - 104 - gutter * 2) / 3;
   const xs = [x0, x0 + colW + gutter, x0 + (colW + gutter) * 2];
 
   let top = p.y;
@@ -601,8 +603,8 @@ function drawPanel() {
   slider(xs[2], ys[1], colW, 'Width', 'w', true);
   slider(xs[2], ys[2], colW, 'Height', 'h', true);
   slider(xs[2], ys[3], colW, 'Rotation', 'rotation', true);
-  button(xs[2], ys[4] + 6, 262, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
-  button(xs[2] + 303, ys[4] + 6, 262, 'Reset', resetDesign, false);
+  button(xs[2], ys[4] + 6, (colW - 40) / 2, S.ghost ? 'Grid: on' : 'Grid: off', () => { S.ghost = !S.ghost; persist(); }, S.ghost);
+  button(xs[2] + (colW + 40) / 2, ys[4] + 6, (colW - 40) / 2, 'Reset', resetDesign, false);
 
   drawShortcuts(x0, top + 473);
 }
