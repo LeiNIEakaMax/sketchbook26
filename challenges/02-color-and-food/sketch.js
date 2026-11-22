@@ -56,18 +56,18 @@ const PLAIN_BG = '#131313'; // background when Color is off (the original Figma 
 
 // Type, from the Figma frame (2048×2048), now 1:1 with the canvas.
 // The 9 fonts from the Figma frame "fonts" (node 31:76071), in its reading
-// order. All self-hosted in fonts/. file: null = not added yet (falls back to
+// order, self-hosted in fonts/ (licences in fonts/README.md). file: null = not added (falls back to
 // a system serif and the panel says "missing").
 const FONTS = [
   { name: 'Handjet', family: 'CC Handjet', file: 'Handjet-Regular.woff2' },
   { name: 'LT Remark', family: 'CC LT Remark', file: 'LTRemark-Regular.otf' },
   { name: 'Manufacturing Consent', family: 'CC Manufacturing Consent', file: 'ManufacturingConsent-Regular.woff2' },
   { name: 'Inconsolata', family: 'CC Inconsolata', file: 'Inconsolata-ExtraCondensedBold.woff2' },
-  { name: 'Sprat', family: 'CC Sprat', file: null },
-  { name: 'Velvelyne', family: 'CC Velvelyne', file: null },
-  { name: 'bianzhidai', family: 'CC bianzhidai', file: null },
-  { name: 'College', family: 'CC College', file: null },
-  { name: 'CirrusCumulus', family: 'CC CirrusCumulus', file: null },
+  { name: 'Sprat', family: 'CC Sprat', file: 'Sprat-Regular.woff2' },
+  { name: 'Velvelyne', family: 'CC Velvelyne', file: 'Velvelyne-Regular.woff2' },
+  { name: 'bianzhidai', family: 'CC bianzhidai', file: 'local/bianzhidai-Base.otf' }, // local only, see fonts/README.md
+  { name: 'College', family: 'CC College', file: 'College-Regular.ttf' },
+  { name: 'CirrusCumulus', family: 'CC CirrusCumulus', file: 'CirrusCumulus.woff' },
 ];
 const fontReady = FONTS.map(() => false);
 
