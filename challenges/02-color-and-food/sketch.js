@@ -55,12 +55,42 @@ const BLACK = '#000000';
 const PLAIN_BG = '#131313'; // background when Color is off (the original Figma frame)
 
 // Type, from the Figma frame (2048×2048), now 1:1 with the canvas.
-const FONT = 'LT Remark';                       // self-hosted, see fonts/
+// The 9 fonts from the Figma frame "fonts" (node 31:76071), in its reading
+// order. All self-hosted in fonts/. file: null = not added yet (falls back to
+// a system serif and the panel says "missing").
+const FONTS = [
+  { name: 'Handjet', family: 'CC Handjet', file: 'Handjet-Regular.woff2' },
+  { name: 'LT Remark', family: 'CC LT Remark', file: 'LTRemark-Regular.otf' },
+  { name: 'Manufacturing Consent', family: 'CC Manufacturing Consent', file: 'ManufacturingConsent-Regular.woff2' },
+  { name: 'Inconsolata', family: 'CC Inconsolata', file: 'Inconsolata-ExtraCondensedBold.woff2' },
+  { name: 'Sprat', family: 'CC Sprat', file: null },
+  { name: 'Velvelyne', family: 'CC Velvelyne', file: null },
+  { name: 'bianzhidai', family: 'CC bianzhidai', file: null },
+  { name: 'College', family: 'CC College', file: null },
+  { name: 'CirrusCumulus', family: 'CC CirrusCumulus', file: null },
+];
+const fontReady = FONTS.map(() => false);
+
+// Load every font with the FontFace API so a missing file just marks it missing.
+function loadFonts() {
+  FONTS.forEach((f, i) => {
+    if (!f.file) return;
+    const face = new FontFace(f.family, `url(fonts/${f.file})`);
+    face.load().then((ok) => { document.fonts.add(ok); fontReady[i] = true; }).catch(() => {});
+  });
+}
+
+function currentFont() {
+  // Just the family name: p5 quotes it itself, so a fallback list would break it.
+  // A font that isn't loaded draws in the browser's default face.
+  return (FONTS[S.font] || FONTS[1]).family;
+}
 const TEXT_MID = (707.45 + 1027.55) / 2 + 263 / 2; // halfway between the two lines (999)
 
 // Defaults = Max's chosen settings (2026-11-22). Reset returns to these.
 const DEFAULTS = {
   display: 'words',   // 'words' | 'percent'
+  font: 1,            // index into FONTS (1 = LT Remark)
   color: true,        // background follows the colour grid
   fade: 1810,         // ms for a colour change
   size: 246,          // font size, px (Figma had 219)
@@ -75,6 +105,7 @@ const RANGES = {
   fade: [0, 2000, 10],
   size: [60, 400, 1],
   lineGap: [100, 700, 1],
+  font: [0, FONTS.length - 1, 1],
   margin: [0, 600, 1],
 };
 
@@ -132,7 +163,7 @@ function setup() {
   noStroke();
   // Canvas text only uses a web font once it has loaded.
   try {
-    document.fonts.load(`${S.size}px "${FONT}"`);
+    loadFonts();
     document.fonts.load(`21px "${MONO}"`);
   } catch (e) { /* falls back */ }
   // iOS only lets a tap's click event ask for motion access, so Tilt waits for it.
@@ -159,7 +190,7 @@ function draw() {
 
   noStroke();
   fill(ink);
-  textFont(FONT);
+  textFont(currentFont());
   textSize(S.size);
   textAlign(CENTER, CENTER);
   text(upper, width / 2, TEXT_MID - S.lineGap / 2);
@@ -297,7 +328,7 @@ function drawTopBar(ink) {
 /* ---------- control panel (drawn on the canvas) ---------- */
 
 function panelRect() {
-  return { x: 40, y: 1636, w: 1920, h: 336 };
+  return { x: 40, y: 1513, w: 1920, h: 459 }; // top row: Font
 }
 
 let hits = [];    // clickable areas from the last frame
@@ -319,7 +350,14 @@ function drawPanel() {
   const gutter = 60;
   const x0 = p.x + 52;
   const xs = [0, 1, 2, 3].map((i) => x0 + (colW + gutter) * i);
-  const ys = [p.y + 38, p.y + 122];
+
+  // Top row: the font, a stepped slider (one stop per font) as wide as two columns.
+  slider(xs[0], p.y + 38, colW * 2 + gutter, 'Font', 'font', true);
+  stroke(LINE);
+  strokeWeight(2);
+  line(x0, p.y + 136, x0 + colW * 4 + gutter * 3, p.y + 136);
+
+  const ys = [p.y + 161, p.y + 245];
 
   // Column 1: colour
   toggleRow(xs[0], ys[0], colW, 'Color', 'color');
@@ -338,7 +376,7 @@ function drawPanel() {
   button(xs[3], ys[0] + 2, colW, S.grid ? 'Grid: on' : 'Grid: off', () => { S.grid = !S.grid; persist(); }, S.grid);
   button(xs[3], ys[1] + 2, colW, 'Reset', resetSettings, false);
 
-  drawShortcuts(x0, p.y + 254);
+  drawShortcuts(x0, p.y + 377);
 }
 
 // Drag / Tilt. Only live on touch devices; Tilt is applied on the tap's click
@@ -366,26 +404,27 @@ function inputSwitch(x, y, w) {
 
 // Keyboard shortcuts as little key caps.
 function drawShortcuts(x, y) {
-  const keys = [['P', 'words / percent'], ['S', 'save PNG'], ['H', 'hide UI'], ['F', 'fullscreen']];
+  const keys = [['Scroll', 'font'], ['P', 'words / percent'], ['S', 'save PNG'], ['H', 'hide UI'], ['F', 'fullscreen']];
   textSize(20);
   for (const [k, what] of keys) {
+    textFont(MONO);
+    const kw = Math.max(34, textWidth(k) + 18); // wider caps for words like "Scroll"
     noStroke();
     fill('#555');
-    rect(x + 2, y + 2, 34, 35);          // the key's shadow
+    rect(x + 2, y + 2, kw, 35);          // the key's shadow
     fill(PANEL_BG);
     stroke(DIM);
     strokeWeight(2);
-    rect(x, y, 34, 35);                  // the key
+    rect(x, y, kw, 35);                  // the key
     noStroke();
     fill(INK);
-    textFont(MONO);
     textAlign(CENTER, CENTER);
-    text(k, x + 17, y + 17);
+    text(k, x + kw / 2, y + 17);
     textFont(UI_FONT);
     fill(DIM);
     textAlign(LEFT, CENTER);
-    text(what, x + 34 + 11, y + 17);
-    x += 34 + 11 + textWidth(what) + 40;
+    text(what, x + kw + 11, y + 17);
+    x += kw + 11 + textWidth(what) + 40;
   }
 }
 
@@ -448,12 +487,22 @@ function segmented(x, y, w, key, options, enabled) {
   });
 }
 
+// Sliders that snap to stops and show a name instead of a number.
+const STEPPED = { font: true };
+function valueText(key) {
+  if (key === 'font') {
+    const i = S.font;
+    return FONTS[i].name + (fontReady[i] ? '' : FONTS[i].file ? '  loading' : '  missing');
+  }
+  return fmt(S[key]) + (UNITS[key] || '');
+}
+
 function slider(x, y, w, name, key, enabled) {
   const [lo, hi] = RANGES[key];
   label(x, y + 14, name, enabled);
   textAlign(RIGHT, CENTER);
   fill(enabled ? INK : DIM);
-  text(fmt(S[key]) + (UNITS[key] || ''), x + w, y + 14);
+  text(valueText(key), x + w, y + 14);
 
   const ty = y + 56;
   const t = constrain((S[key] - lo) / (hi - lo), 0, 1);
@@ -462,6 +511,15 @@ function slider(x, y, w, name, key, enabled) {
   rect(x, ty - 4, w, 8);
   fill(enabled ? ACTIVE : '#666');
   rect(x, ty - 4, w * t, 8);
+  if (STEPPED[key]) {
+    // A tick at every stop.
+    const n = Math.round((hi - lo) / RANGES[key][2]);
+    for (let i = 0; i <= n; i++) {
+      const tx = x + (w * i) / n;
+      fill(i / n <= t ? ACTIVE : '#666');
+      rect(tx - 2, ty - 14, 4, 28);
+    }
+  }
   // Square knob that turns 135° into a diamond while the slider is hovered or dragged.
   const area = { x: x - 20, y: y - 6, w: w + 40, h: 84 };
   const hot = enabled && ((drag && drag.key === key) || (!drag && inside(uiX(), uiY(), area, 0)));
@@ -559,6 +617,20 @@ function updateCursor() {
 // Keep the page from scrolling or zooming while dragging on the canvas.
 function touchMoved(e) {
   if (e && e.target && e.target.tagName === 'CANVAS') return false;
+}
+
+// Scrolling steps through the fonts, one per notch (trackpads add up their small deltas).
+let wheelAcc = 0;
+function mouseWheel(e) {
+  wheelAcc += e.delta;
+  const STEP = 100; // one mouse-wheel notch
+  while (Math.abs(wheelAcc) >= STEP) {
+    const dir = Math.sign(wheelAcc);
+    wheelAcc -= dir * STEP;
+    S.font = (S.font + dir + FONTS.length) % FONTS.length;
+  }
+  persist();
+  return false;
 }
 
 function keyPressed() {
