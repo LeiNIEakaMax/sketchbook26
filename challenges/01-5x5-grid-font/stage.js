@@ -1,5 +1,5 @@
 /*
- * stage.js — the shared CC2026 stage for p5.js (global mode).
+ * stage.js — the shared sketchbook26 stage for p5.js (global mode).
  *
  * Call `stage()` instead of `createCanvas()` in setup(). You get:
  *   - a fixed 2048×2048 canvas at pixelDensity(1), so exports are exactly 2048×2048
@@ -42,7 +42,7 @@ function stage(opts = {}) {
 
 // Saves the canvas as <folder-name>-<timestamp>.png
 function saveStage(name) {
-  const slug = name || location.pathname.split('/').filter(Boolean).pop() || 'cc2026';
+  const slug = name || location.pathname.split('/').filter(Boolean).pop() || 'sketchbook26';
   const t = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
   saveCanvas(`${slug}-${t}`, 'png');
 }

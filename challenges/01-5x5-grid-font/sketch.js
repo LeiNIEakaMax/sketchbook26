@@ -26,7 +26,7 @@
 // design at 1:1. All and Type draw the same design scaled to the font size
 // (font size = glyph height), so a wider box makes a wider font.
 //
-// Glyphs come from the Figma frame "5×5 masters — Aa–Zz and 0–9" (file cc2026,
+// Glyphs come from the Figma frame "5×5 masters — Aa–Zz and 0–9" (Figma file cc2026,
 // node 9:958). Defaults come from "5×5 / Letters / A": 252.28×300 box, 9px gaps,
 // 15px radius, #d2d2d2 fill and a 6px inside stroke of the same colour, on #242424.
 

@@ -2,7 +2,7 @@
 // Canvas is 2048×2048. mouseX / mouseY are already in canvas coordinates.
 //
 // An exploration of the phone's motion sensors. Tilt the phone and an
-// AutoCAD-style crosshair (the one on the CC2026 home page: full-length dashed
+// AutoCAD-style crosshair (the one on the sketchbook26 home page: full-length dashed
 // guides, four bars in the middle) moves across the canvas.
 //
 //   gamma (left / right tilt)    → x
