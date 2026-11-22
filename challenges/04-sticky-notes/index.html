@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sticky notes · sketchbook26</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Schibsted+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* A board to stick things on. The notes themselves live in assets/sticky.js,
+       which every page of the site loads; this page just opens the pad. */
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body { background: #1b1b1b radial-gradient(circle, #343434 1px, transparent 1.4px) 0 0 / 24px 24px; color: #eee;
+      font: 15px/1.5 'Schibsted Grotesk', system-ui, sans-serif; }
+    .back { position: fixed; top: 8px; left: 12px; font: 12px/1.4 ui-monospace, monospace; color: #888; text-decoration: none; }
+    .back:hover { color: #eee; }
+    header { position: fixed; top: 40px; left: 24px; right: 24px; pointer-events: none; }
+    h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; }
+    header p { margin: 6px 0 0; max-width: 34em; color: #8a8a8a; font: 12px/1.6 'JetBrains Mono', ui-monospace, monospace; }
+  </style>
+  <script src="../../assets/sticky.js" data-open="true" data-seed="true" defer></script>
+</head>
+<body>
+  <a class="back" href="../../">← sketchbook26</a>
+  <header>
+    <h1>04 · Sticky notes</h1>
+    <p>A pad of sticky notes that comes with you to every page. Peel one off by its bottom edge, stick it anywhere, type. It never grows: when it's full, take another.</p>
+  </header>
+</body>
+</html>

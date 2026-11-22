@@ -22,5 +22,13 @@
     "stack": "p5",
     "date": "2026-11-22",
     "description": "Tilt your phone to steer a CAD crosshair, with the live gyro numbers on screen."
+  },
+  {
+    "number": 4,
+    "slug": "04-sticky-notes",
+    "title": "Sticky notes",
+    "stack": "html",
+    "date": "2026-11-22",
+    "description": "A pad of sticky notes on every page: peel one off, stick it anywhere, type until it's full."
   }
 ]
