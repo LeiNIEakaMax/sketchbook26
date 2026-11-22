@@ -25,6 +25,11 @@
   const script = document.currentScript;
   const OPEN_ON_LOAD = !!script && script.dataset.open === 'true';
   const SEED = !!script && script.dataset.seed === 'true';
+  const FOLDER_MODE = !!script && script.dataset.folder === 'true'; // the notes folder page
+  // The site root is one level above this file (assets/), on localhost and on Pages alike.
+  const ROOT = new URL('..', (script && script.src) || location.href);
+  const FOLDER_URL = new URL('notes/', ROOT).href;
+  const NOTE_HASH = /^#sb-note=([\w-]+)$/;
 
   // Max, 2026-11-22: notes and pad at full size with 17px text; the controls
   // (pen picker, Show/Hide, pad button, trash) at half size.
@@ -64,7 +69,7 @@
   /* Notes live on the page itself (document coordinates), so they scroll with it.
      The pad, toggle and trash stay fixed to the window. */
   .sb26.sb-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; }
-  .sb26.sb-hidden.sb-layer, .sb26.sb-hidden.sb-trash, #sb26s.sb-hidden .sb-pad, #sb26s.sb-hidden .sb-padbtn { display: none; }
+  .sb26.sb-hidden.sb-layer, .sb26.sb-hidden.sb-trash, #sb26s.sb-hidden .sb-pad, #sb26s.sb-hidden .sb-padbtn:not(.sb-folderbtn) { display: none; }
 
   /* one sheet of paper: the pad's top sheet and every note on the page */
   .sb26 .sb-paper { position: absolute; left: 0; top: 0; width: ${BASE}px; height: ${BASE}px; pointer-events: auto; touch-action: none;
@@ -91,6 +96,13 @@
   /* date stamp, bottom right (Figma "Sticky / Note", node 43:61977) */
   .sb26 .sb-date { position: absolute; right: 11px; bottom: 0; height: 23px; line-height: 23px; pointer-events: none; white-space: nowrap;
     font: 500 9pt/23px 'Barlow Condensed', 'Arial Narrow', sans-serif; color: rgba(29,26,16,.6); }
+  /* a note seen in the notes folder */
+  .sb26 .sb-paper.sb-card { position: relative; display: block; flex: none; cursor: pointer; text-decoration: none;
+    box-shadow: 0 1px 1px rgba(0,0,0,.18), 0 12px 14px -12px rgba(0,0,0,.65); transition: transform .2s cubic-bezier(.2,.9,.3,1.2), box-shadow .2s; }
+  .sb26 .sb-paper.sb-card:hover, .sb26 .sb-paper.sb-card:focus-visible { transform: rotate(0deg) scale(1.04) !important; box-shadow: 0 2px 3px rgba(0,0,0,.2), 0 26px 30px -14px rgba(0,0,0,.6); outline: none; }
+  /* the note you came to from the folder */
+  .sb26 .sb-note.sb-found { animation: sb-found 1.6s ease-out 2; }
+  @keyframes sb-found { 0% { box-shadow: 0 0 0 0 rgba(40,229,176,.9); } 100% { box-shadow: 0 0 0 24px rgba(40,229,176,0); } }
   .sb26 .sb-f-apple .sb-ta { font-family: 'Homemade Apple', cursive; line-height: 26px; }
   .sb26 .sb-f-salt .sb-ta { font-family: 'Rock Salt', cursive; line-height: 26px; }
   .sb26 .sb-ta::placeholder { color: rgba(60,50,10,.35); }
@@ -128,6 +140,12 @@
   .sb26 .sb-seg button:not([aria-pressed="true"]):hover { background: rgba(255,255,255,.08); }
   .sb26 .sb-fonts button { text-transform: none; letter-spacing: 0; font-size: 14px; padding: 0 10px; }
   .sb26 .sb-padbtn { width: 40px; height: 40px; padding: 0; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); cursor: pointer; display: grid; place-items: center; }
+  .sb26 a.sb-padbtn { color: #eee; }
+  .sb26 a.sb-padbtn svg { width: 20px; height: 20px; }
+  /* bottom centre: back to the notes folder after jumping to a note */
+  .sb26 .sb-return { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    pointer-events: auto; border: 1px solid #fff; background: #fff; color: #111; text-decoration: none; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  .sb26 .sb-return:hover { background: #e8e8e8; }
   .sb26 .sb-padbtn:hover { border-color: rgba(255,255,255,.5); }
   .sb26 .sb-padbtn[aria-expanded="true"] { background: #fff; border-color: #fff; }
   .sb26 .sb-padbtn i { display: block; width: 18px; height: 18px; background: linear-gradient(180deg, #f6f0ba, #f0de86); box-shadow: 0 2px 0 #c9b263; }
@@ -153,7 +171,7 @@
 
   // Draw the controls' rules at UI_SCALE: every length over 1.5px is scaled; hairlines stay.
   // A rule (and its continuation lines) counts as a control if its selector names one.
-  const UI_RULE = /#sb26s \{|sb-dock|sb-seg|sb-fonts|sb-padbtn|sb-trash|sb-gulp|sb-hint/;
+  const UI_RULE = /#sb26s \{|sb-dock|sb-seg|sb-fonts|sb-padbtn|sb-trash|sb-gulp|sb-hint|sb-return/;
   let uiRule = false;
   const scaledCss = css.split('\n').map((line) => {
     if (/^  \S/.test(line)) uiRule = UI_RULE.test(line);
@@ -199,7 +217,11 @@
   const fontSeg = el('div', 'sb-seg sb-fonts', FONTS.map((f) => `<button type="button" data-f="${f.id}" title="${f.name}" aria-label="${f.name}" style="font-family:${f.family.replace(/"/g, '')}">Aa</button>`).join(''));
   fontSeg.setAttribute('role', 'group');
   fontSeg.setAttribute('aria-label', 'Pen for the next note');
-  dock.append(fontSeg, seg, padBtn);
+  const folderBtn = el('a', 'sb-padbtn sb-folderbtn', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 6.5h6l2 2h10V19H3z"/></svg>');
+  folderBtn.href = FOLDER_URL;
+  folderBtn.title = 'Notes folder: every note on the site';
+  folderBtn.setAttribute('aria-label', 'Notes folder');
+  dock.append(fontSeg, seg, folderBtn, padBtn);
   root.append(pad, dock);
   const parts = [layer, root, trash];
 
@@ -561,11 +583,99 @@
     return tips.map((t, i) => ({ ...t, id: 'tip' + i, z: i + 1 }));
   }
 
+  /* ---------- the notes folder: every note on the site, by page ---------- */
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const escHtml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  async function buildFolder() {
+    const box = document.getElementById('sb-folder') || document.body.appendChild(el('main'));
+    box.classList.add('sb26');
+    let list = [];
+    try { list = await (await fetch(new URL('challenges.json', ROOT), { cache: 'no-store' })).json(); } catch (e) { /* labels fall back to paths */ }
+    const bySlug = new Map(list.map((c) => [c.slug, c]));
+    const pages = [];
+    let total = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith('sb26.sticky:')) continue;
+        const p = k.slice('sb26.sticky:'.length);
+        const items = (store.get(k, []) || []).filter((d) => d && d.id);
+        if (!items.length) continue;
+        const rel = p.startsWith(ROOT.pathname) ? p.slice(ROOT.pathname.length) : p.replace(/^\//, '');
+        const m = rel.match(/^challenges\/([^/]+)\/$/);
+        const c = m && bySlug.get(m[1]);
+        const label = rel === '' ? 'Home' : c ? `${pad2(c.number)} · ${c.title}` : rel;
+        const order = rel === '' ? -1 : c ? c.number : 999;
+        pages.push({ href: new URL(rel, ROOT).href, label, order, items });
+        total += items.length;
+      }
+    } catch (e) { /* storage blocked */ }
+    pages.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+    const count = document.getElementById('sb-folder-count');
+    if (count) count.textContent = `${total} note${total === 1 ? '' : 's'} on ${pages.length} page${pages.length === 1 ? '' : 's'}`;
+    if (!pages.length) {
+      box.innerHTML = '<p class="sb-empty">No notes yet. Open any page, pull a note off the pad at the bottom right, and it will show up here.</p>';
+      return;
+    }
+    for (const pg of pages) {
+      const sec = el('section', 'sb-page');
+      sec.innerHTML = `<h2><a href="${escHtml(pg.href)}">${escHtml(pg.label)}</a> <small>${pg.items.length}</small></h2>`;
+      const grid = el('div', 'sb-grid');
+      // newest first
+      pg.items.sort((a, b) => String(b.d || '').localeCompare(String(a.d || '')) || (b.z || 0) - (a.z || 0));
+      for (const d of pg.items) {
+        const card = el('a', `sb-paper sb-card sb-f-${fontOf(d.f).id}`);
+        card.href = `${pg.href}#sb-note=${encodeURIComponent(d.id)}`;
+        card.title = `Open on ${pg.label}`;
+        card.style.transform = `rotate(${Number(d.r) || 0}deg)`;
+        const ta = el('textarea', 'sb-ta');
+        ta.value = d.text || '';
+        ta.readOnly = true;
+        ta.tabIndex = -1;
+        ta.setAttribute('aria-hidden', 'true');
+        const date = el('div', 'sb-date');
+        if (d.d) date.textContent = stamp(d.d);
+        card.setAttribute('aria-label', `${(d.text || 'Empty note').slice(0, 80)} (${pg.label})`);
+        card.append(ta, date);
+        grid.append(card);
+      }
+      sec.append(grid);
+      box.append(sec);
+    }
+  }
+
+  // Came here from the folder: show the note, and offer the way back.
+  function arrive() {
+    const m = location.hash.match(NOTE_HASH);
+    if (!m) return;
+    const back = el('a', 'sb-return', '← Notes folder');
+    back.href = FOLDER_URL;
+    root.append(back);
+    const n = notes.find((x) => x.id === decodeURIComponent(m[1]));
+    if (!n) return;
+    if (!visible) setVisible(true);
+    toFront(n);
+    // Pages like the gallery build their content after loading, so wait until the
+    // page is tall enough to scroll the note into the middle of the window.
+    const left = Math.max(0, n.x + SIZE / 2 - innerWidth / 2), top = Math.max(0, n.y + SIZE / 2 - innerHeight / 2);
+    let tries = 0;
+    const go = () => {
+      const room = document.documentElement.scrollHeight - innerHeight;
+      if (room < top - 1 && tries++ < 20) { setTimeout(go, 150); return; }
+      window.scrollTo({ left, top, behavior: 'smooth' });
+      n.el.classList.add('sb-found');
+    };
+    go();
+  }
+
   function start() {
     addFonts();
     const style = el('style');
     style.textContent = scaledCss;
     document.head.append(style);
+    if (FOLDER_MODE) { buildFolder(); return; }
     document.body.append(layer, root, trash);
 
     let saved = store.get(KEY, null);
@@ -589,6 +699,7 @@
     setFont(font);
     setVisible(visible);
     if (OPEN_ON_LOAD && visible) setPad(true);
+    arrive();
 
     window.addEventListener('resize', () => notes.forEach((n) => position(n)));
     // Another tab changed this page's notes: follow along (unless typing here).

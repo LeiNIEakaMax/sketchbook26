@@ -30,6 +30,7 @@ templates/p5/         starting point copied by npm run new
 scripts/              new.mjs and serve.mjs, no dependencies
 assets/qrcode.js      vendored QR generator (MIT) for the local gallery
 assets/sticky.js      sticky notes on every page (challenge 04)
+notes/                the notes folder: every sticky note on the site, by page
 ```
 
 Each challenge folder is self-contained, including its own copy of `stage.js`, so you can change anything inside one without breaking the others.
