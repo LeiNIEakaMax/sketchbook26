@@ -5,24 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Color and food · CC2026</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #131313; overflow: hidden; }
+    :root { --bg: #06155d; --ink: #ffffff; }
+    html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
     body { display: grid; place-items: center; }
     canvas.stage { display: block; touch-action: none; }
-    .back { position: fixed; top: 8px; left: 12px; font: 12px/1.4 ui-monospace, monospace; color: #888; text-decoration: none; }
-    .back:hover { color: #eee; }
+    .back { position: fixed; top: 8px; left: 12px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink); opacity: .6; text-decoration: none; }
+    .back:hover { opacity: 1; }
 
     /* Small segmented toggles, bottom centre */
     .controls { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
       display: flex; gap: 8px; font: 11px/1 ui-monospace, monospace; }
-    .seg { display: flex; border: 1px solid #3a3a3a; border-radius: 999px; padding: 2px; }
-    .seg button { all: unset; cursor: pointer; padding: 4px 9px; border-radius: 999px; color: #777;
+    .seg { display: flex; border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 999px; padding: 2px; }
+    .seg button { all: unset; cursor: pointer; padding: 4px 9px; border-radius: 999px; color: var(--ink); opacity: .6;
       -webkit-tap-highlight-color: transparent; }
-    .seg button:hover { color: #ddd; }
-    .seg button[aria-pressed="true"] { background: #fefefe; color: #131313; }
-    .seg button:focus-visible { outline: 1px solid #fefefe; outline-offset: 1px; }
+    .seg button:hover { opacity: 1; }
+    .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); opacity: 1; }
+    .seg button:focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; }
     .seg[hidden] { display: none; }
     .note { position: fixed; left: 50%; bottom: 38px; transform: translateX(-50%); max-width: 90vw;
-      font: 11px/1.4 ui-monospace, monospace; color: #999; text-align: center; }
+      font: 11px/1.4 ui-monospace, monospace; color: var(--ink); opacity: .75; text-align: center; }
     .note:empty { display: none; }
 
     @font-face { font-family: "LT Remark"; src: url("fonts/LTRemark-Regular.otf") format("opentype");

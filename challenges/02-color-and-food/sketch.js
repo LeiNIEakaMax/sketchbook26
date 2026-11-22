@@ -29,8 +29,26 @@ const SPAN = STAGE_SIZE - MARGIN * 2;
 // From the Figma frame (2048×2048), scaled to the 2000 canvas.
 const FIGMA = 2048;
 const K = STAGE_SIZE / FIGMA;
-const BG = '#131313';
-const INK = '#fefefe';
+
+// 12×12 palette sampled from Max's color-grid-12x12.png: GRID[row][col].
+// The cell under the pointer (column = X band, row = Y band, same bands as the
+// words) becomes the whole background.
+const GRID = [
+  ['#06155d', '#081964', '#092273', '#0b2877', '#0a2a7e', '#304772', '#485e74', '#063a83', '#5c3c67', '#4a5489', '#2f4a83', '#7f6181'],
+  ['#041e41', '#576a98', '#443165', '#2c2761', '#43516c', '#f5e13e', '#deac42', '#13418c', '#83324d', '#c47ca1', '#d8a7c3', '#b57192'],
+  ['#011604', '#d3ab94', '#8a4525', '#5b3a4b', '#314579', '#fde115', '#bd873c', '#093e81', '#a6394b', '#ce7c91', '#d499b5', '#cd7d96'],
+  ['#878e21', '#cf9526', '#d98b41', '#e5961d', '#d3952d', '#613b41', '#3b3449', '#053b7d', '#072d80', '#18397c', '#10337a', '#09357f'],
+  ['#95b889', '#e79f46', '#faa667', '#fb7e36', '#88542c', '#957c71', '#3c222c', '#868a58', '#fae21d', '#e2be2e', '#c8a93d', '#c19645'],
+  ['#e4c777', '#daae1b', '#e56118', '#db6726', '#806a61', '#533c3b', '#8f8379', '#e4cf2d', '#fcdd26', '#f7d129', '#d3a144', '#987a4c'],
+  ['#edd72a', '#d9cdba', '#ccad9e', '#a17861', '#795a49', '#63453d', '#4a2a2f', '#ddc03a', '#7a904e', '#aaa844', '#c39b43', '#91754d'],
+  ['#ecae61', '#611a11', '#fd8651', '#f5bfad', '#7d4933', '#150915', '#3d1a24', '#6a674f', '#8a9a65', '#739164', '#5c8061', '#9f7948'],
+  ['#b99243', '#bf6f57', '#f7a388', '#ee9a8a', '#dd5f42', '#32191a', '#1d1222', '#5a4b40', '#55694a', '#5a664e', '#5a6c56', '#677565'],
+  ['#e5c714', '#c4c505', '#f73932', '#f1917d', '#fe704f', '#aa4c3b', '#58383b', '#883434', '#f15941', '#a8354c', '#752952', '#a9a276'],
+  ['#f1d30c', '#c8b10c', '#c6c87b', '#f16c41', '#ed7d4d', '#f59074', '#e1e0ce', '#a34351', '#fab682', '#d22a3f', '#735441', '#948f50'],
+  ['#a38031', '#91900d', '#1d080b', '#6c463b', '#cec298', '#d8c9b1', '#814657', '#844660', '#923e50', '#c43943', '#682a49', '#75674b'],
+];
+const WHITE = '#ffffff';
+const BLACK = '#000000';
 const FONT = 'LT Remark';          // self-hosted, see fonts/
 const FONT_SIZE = 219 * K;               // 219px in Figma
 const UPPER_Y = (707.45 + 263 / 2) * K;  // centre of the upper text box in Figma
@@ -86,8 +104,11 @@ function draw() {
     ? `Y - ${Math.round(unit(y) * 100)}%`
     : FOODS[band(y, FOODS.length)];
 
-  background(BG);
-  fill(INK);
+  const bg = GRID[band(y, GRID.length)][band(x, GRID[0].length)];
+  const ink = inkFor(bg);
+  background(bg);
+  fill(ink);
+  syncPage(bg, ink);
   text(upper, width / 2, UPPER_Y);
   text(lower, width / 2, LOWER_Y);
 }
@@ -170,6 +191,37 @@ function onOrient(e) {
     x: map(constrain(dx, -TILT_RANGE, TILT_RANGE), -TILT_RANGE, TILT_RANGE, MARGIN, STAGE_SIZE - MARGIN),
     y: map(constrain(dy, -TILT_RANGE, TILT_RANGE), -TILT_RANGE, TILT_RANGE, MARGIN, STAGE_SIZE - MARGIN),
   };
+}
+
+/* ---------- colour + contrast ---------- */
+
+// WCAG 2 relative luminance of a #rrggbb colour.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((m, n) => n - m);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// White or black text, whichever has the higher contrast ratio on bg.
+function inkFor(bg) {
+  return contrast(bg, WHITE) >= contrast(bg, BLACK) ? WHITE : BLACK;
+}
+
+// Page around the canvas and the small controls follow the same colours.
+let lastBg = null;
+function syncPage(bg, ink) {
+  if (bg === lastBg) return;
+  lastBg = bg;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', bg);
+  root.setProperty('--ink', ink);
 }
 
 function note(msg) {
