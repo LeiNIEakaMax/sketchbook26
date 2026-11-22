@@ -12,39 +12,22 @@
     .back { position: fixed; top: 8px; left: 12px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink); opacity: .6; text-decoration: none; }
     .back:hover { opacity: 1; }
 
-    /* Small segmented toggles, bottom centre */
-    .controls { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
-      display: flex; gap: 8px; font: 11px/1 ui-monospace, monospace; }
-    .seg { display: flex; border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 999px; padding: 2px; }
-    .seg button { all: unset; cursor: pointer; padding: 4px 9px; border-radius: 999px; color: var(--ink); opacity: .6;
-      -webkit-tap-highlight-color: transparent; }
-    .seg button:hover { opacity: 1; }
-    .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); opacity: 1; }
-    .seg button:focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; }
-    .seg[hidden] { display: none; }
-    .note { position: fixed; left: 50%; bottom: 38px; transform: translateX(-50%); max-width: 90vw;
+    .note { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: 90vw;
       font: 11px/1.4 ui-monospace, monospace; color: var(--ink); opacity: .75; text-align: center; }
     .note:empty { display: none; }
 
     @font-face { font-family: "LT Remark"; src: url("fonts/LTRemark-Regular.otf") format("opentype");
       font-weight: 400; font-style: normal; font-display: block; }
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.13/lib/p5.min.js"></script>
   <script src="stage.js"></script>
   <script src="sketch.js"></script>
 </head>
 <body>
   <a class="back" href="../../">← CC2026</a>
-  <div class="controls">
-    <div class="seg" role="group" aria-label="Display">
-      <button type="button" data-display="words">Words</button>
-      <button type="button" data-display="percent">Percent</button>
-    </div>
-    <div class="seg" role="group" aria-label="Input" id="input-seg" hidden>
-      <button type="button" data-input="drag">Drag</button>
-      <button type="button" data-input="tilt">Tilt</button>
-    </div>
-  </div>
   <p class="note" id="note" role="status"></p>
 </body>
 </html>
