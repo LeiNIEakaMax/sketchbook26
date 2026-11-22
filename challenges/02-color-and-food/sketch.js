@@ -47,6 +47,10 @@ const GRID = [
   ['#f1d30c', '#c8b10c', '#c6c87b', '#f16c41', '#ed7d4d', '#f59074', '#e1e0ce', '#a34351', '#fab682', '#d22a3f', '#735441', '#948f50'],
   ['#a38031', '#91900d', '#1d080b', '#6c463b', '#cec298', '#d8c9b1', '#814657', '#844660', '#923e50', '#c43943', '#682a49', '#75674b'],
 ];
+// Colour transitions: how long (ms) it takes to get most of the way to a new
+// cell's colour. Larger = softer. Reduced-motion users get instant changes.
+const FADE_MS = 350;
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const WHITE = '#ffffff';
 const BLACK = '#000000';
 const FONT = 'LT Remark';          // self-hosted, see fonts/
@@ -104,8 +108,8 @@ function draw() {
     ? `Y - ${Math.round(unit(y) * 100)}%`
     : FOODS[band(y, FOODS.length)];
 
-  const bg = GRID[band(y, GRID.length)][band(x, GRID[0].length)];
-  const ink = inkFor(bg);
+  const target = GRID[band(y, GRID.length)][band(x, GRID[0].length)];
+  const { bg, ink } = easeColours(target, inkFor(target));
   background(bg);
   fill(ink);
   syncPage(bg, ink);
@@ -214,11 +218,33 @@ function inkFor(bg) {
   return contrast(bg, WHITE) >= contrast(bg, BLACK) ? WHITE : BLACK;
 }
 
+// Ease the shown background and text colours toward their targets, frame-rate
+// independent (exponential smoothing in RGB).
+const shown = { bg: null, ink: null };
+function easeColours(bgTarget, inkTarget) {
+  const tb = toRgb(bgTarget), ti = toRgb(inkTarget);
+  if (!shown.bg || REDUCED_MOTION) {
+    shown.bg = tb; shown.ink = ti;
+  } else {
+    const k = 1 - Math.exp(-deltaTime / (FADE_MS / 3));
+    shown.bg = shown.bg.map((c, i) => c + (tb[i] - c) * k);
+    shown.ink = shown.ink.map((c, i) => c + (ti[i] - c) * k);
+  }
+  return { bg: toHex(shown.bg), ink: toHex(shown.ink) };
+}
+
+function toRgb(h) {
+  return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+function toHex(c) {
+  return '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+}
+
 // Page around the canvas and the small controls follow the same colours.
-let lastBg = null;
+let lastBg = null, lastInk = null;
 function syncPage(bg, ink) {
-  if (bg === lastBg) return;
-  lastBg = bg;
+  if (bg === lastBg && ink === lastInk) return;
+  lastBg = bg; lastInk = ink;
   const root = document.documentElement.style;
   root.setProperty('--bg', bg);
   root.setProperty('--ink', ink);
