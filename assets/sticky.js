@@ -26,12 +26,13 @@
   const OPEN_ON_LOAD = !!script && script.dataset.open === 'true';
   const SEED = !!script && script.dataset.seed === 'true';
 
-  // Everything below is designed at full size and drawn at SCALE (Max, 2026-11-22: half size).
-  const SCALE = 0.5;
-  const BASE = 180;          // note size at full scale
-  const SIZE = BASE * SCALE; // note size in CSS px, the same on every page and device
-  const PEEL = 110 * SCALE;  // how far (px) the bottom has to be pulled before the sheet comes off
-  const PERSP = 700 * SCALE; // perspective for the peel
+  // Max, 2026-11-22: notes and pad at full size with 17px text; the controls
+  // (pen picker, Show/Hide, pad button, trash) at half size.
+  const UI_SCALE = 0.5;      // the controls are designed at full size and drawn at this scale
+  const BASE = 180;
+  const SIZE = BASE;         // note size in CSS px, the same on every page and device
+  const PEEL = 110;          // how far (px) the bottom has to be pulled before the sheet comes off
+  const PERSP = 700;         // perspective for the peel
   const FONT_KEY = 'sb26.sticky.font';
   // The pens. Each note keeps the one it was peeled with, so its text always fits.
   const FONTS = [
@@ -80,16 +81,16 @@
 
   .sb26 .sb-ta { position: absolute; left: 14px; right: 14px; top: 22px; bottom: 14px; width: auto; height: auto; margin: 0; padding: 0;
     border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: #1d1a10; caret-color: #1d1a10;
-    font-size: 18px; line-height: 23px; font-family: 'Shantell Sans', cursive; overflow-wrap: anywhere; white-space: pre-wrap;
+    font-size: 17px; line-height: 22px; font-family: 'Shantell Sans', cursive; overflow-wrap: anywhere; white-space: pre-wrap;
     pointer-events: none; -webkit-user-select: text; user-select: text; }
   .sb26 .sb-editing .sb-ta { pointer-events: auto; }
-  .sb26 .sb-f-apple .sb-ta { font-family: 'Homemade Apple', cursive; line-height: 27px; }
-  .sb26 .sb-f-salt .sb-ta { font-family: 'Rock Salt', cursive; line-height: 27px; }
+  .sb26 .sb-f-apple .sb-ta { font-family: 'Homemade Apple', cursive; line-height: 26px; }
+  .sb26 .sb-f-salt .sb-ta { font-family: 'Rock Salt', cursive; line-height: 26px; }
   .sb26 .sb-ta::placeholder { color: rgba(60,50,10,.35); }
   .sb26 .sb-ta::selection { background: rgba(0,0,0,.16); }
 
   /* the pad */
-  .sb26 .sb-pad { position: absolute; right: 16px; bottom: 68px; width: ${BASE}px; height: ${BASE + 8}px;
+  .sb26 .sb-pad { position: absolute; right: 8px; bottom: 38px; width: ${BASE}px; height: ${BASE + 8}px;
     transition: transform .3s cubic-bezier(.2,.9,.3,1.1), opacity .2s; }
   .sb26 .sb-pad.sb-closed { transform: translateY(24px); opacity: 0; visibility: hidden; transition: transform .2s, opacity .2s, visibility 0s .2s; }
   .sb26 .sb-under { position: absolute; left: 0; width: ${BASE}px; height: ${BASE}px; background: #e6d47e; pointer-events: none; }
@@ -143,8 +144,15 @@
     .sb26 .sb-note.sb-full, .sb26 .sb-sheet.sb-fresh, .sb26.sb-trash.sb-gulp { animation: none; }
   }`;
 
-  // Draw the stylesheet at SCALE: every length over 1.5px is scaled; hairlines stay.
-  const scaledCss = css.replace(/(\d*\.?\d+)px/g, (m, v) => (Number(v) <= 1.5 ? m : +(Number(v) * SCALE).toFixed(2) + 'px'));
+  // Draw the controls' rules at UI_SCALE: every length over 1.5px is scaled; hairlines stay.
+  // A rule (and its continuation lines) counts as a control if its selector names one.
+  const UI_RULE = /#sb26s \{|sb-dock|sb-seg|sb-fonts|sb-padbtn|sb-trash|sb-gulp|sb-hint/;
+  let uiRule = false;
+  const scaledCss = css.split('\n').map((line) => {
+    if (/^  \S/.test(line)) uiRule = UI_RULE.test(line);
+    if (!uiRule) return line;
+    return line.replace(/(\d*\.?\d+)px/g, (m, v) => (Number(v) <= 1.5 ? m : +(Number(v) * UI_SCALE).toFixed(2) + 'px'));
+  }).join('\n');
 
   function addFonts() {
     const have = [...document.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.href).join(' ');
@@ -245,7 +253,7 @@
   // Top-left corner in page px: x from the stored fraction of the page width
   // (so notes stay put across window sizes), y as stored.
   function placeOf(n) {
-    const x = clamp(n.fx * W() - SIZE / 2, -SIZE + 48 * SCALE, W() - 48 * SCALE);
+    const x = clamp(n.fx * W() - SIZE / 2, -SIZE + 48, W() - 48);
     const y = Math.max(0, n.py - SIZE / 2);
     return { x, y };
   }
@@ -347,7 +355,7 @@
 
   function overTrash(x, y) {
     const r = trash.getBoundingClientRect();
-    const m = 28 * SCALE; // generous: "drag it to the bottom left"
+    const m = 16; // generous: "drag it to the bottom left"
     return x > r.left - m && x < r.right + m && y > r.top - m && y < r.bottom + m;
   }
 
