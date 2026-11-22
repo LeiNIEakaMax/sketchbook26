@@ -58,14 +58,15 @@ const PLAIN_BG = '#131313'; // background when Color is off (the original Figma 
 const FONT = 'LT Remark';                       // self-hosted, see fonts/
 const TEXT_MID = (707.45 + 1027.55) / 2 + 263 / 2; // halfway between the two lines (999)
 
+// Defaults = Max's chosen settings (2026-11-22). Reset returns to these.
 const DEFAULTS = {
   display: 'words',   // 'words' | 'percent'
   color: true,        // background follows the colour grid
-  fade: 350,          // ms for a colour change
-  size: 219,          // font size, px (as in Figma)
-  lineGap: 320,       // distance between the two lines' centres (as in Figma)
-  margin: 256,        // dead zone round the interactive area (12 bands of 128px)
-  grid: false,        // show the 12×12 bands
+  fade: 1810,         // ms for a colour change
+  size: 246,          // font size, px (Figma had 219)
+  lineGap: 154,       // distance between the two lines' centres (Figma had 320)
+  margin: 361,        // dead zone round the interactive area (Figma had 256)
+  grid: true,         // show the 12×12 bands
   panel: true,        // show the control panel
 };
 
