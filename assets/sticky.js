@@ -8,6 +8,7 @@
  * - The square button at the bottom right brings out a pad of notes.
  * - Grab the bottom of the top sheet and pull: it peels off and follows the pointer.
  *   Let go anywhere and it sticks there. Start typing straight away.
+ * - Three pens (Shantell Sans, Homemade Apple, Rock Salt) in the dock; a note keeps the pen it was peeled with.
  * - Notes never grow or resize and have one font size. When a note is full it
  *   stops taking text: grab another one from the pad.
  * - Drag a note onto the trash can at the bottom left and let go to throw it away.
@@ -25,8 +26,20 @@
   const OPEN_ON_LOAD = !!script && script.dataset.open === 'true';
   const SEED = !!script && script.dataset.seed === 'true';
 
-  const SIZE = 180;          // note size in CSS px, the same on every page and device
-  const PEEL = 110;          // how far (px) the bottom has to be pulled before the sheet comes off
+  // Everything below is designed at full size and drawn at SCALE (Max, 2026-11-22: half size).
+  const SCALE = 0.5;
+  const BASE = 180;          // note size at full scale
+  const SIZE = BASE * SCALE; // note size in CSS px, the same on every page and device
+  const PEEL = 110 * SCALE;  // how far (px) the bottom has to be pulled before the sheet comes off
+  const PERSP = 700 * SCALE; // perspective for the peel
+  const FONT_KEY = 'sb26.sticky.font';
+  // The pens. Each note keeps the one it was peeled with, so its text always fits.
+  const FONTS = [
+    { id: 'shantell', name: 'Shantell Sans', family: "'Shantell Sans', 'Comic Sans MS', cursive", lh: 23 },
+    { id: 'apple', name: 'Homemade Apple', family: "'Homemade Apple', cursive", lh: 27 },
+    { id: 'salt', name: 'Rock Salt', family: "'Rock Salt', cursive", lh: 27 },
+  ];
+  const fontOf = (id) => FONTS.find((f) => f.id === id) || FONTS[0];
   const GRAB_FROM = 0.45;    // the sheet can only be grabbed below this fraction of its height
   const path = location.pathname.replace(/index\.html$/, '').replace(/\/*$/, '/');
   const KEY = 'sb26.sticky:' + path;
@@ -49,8 +62,8 @@
   .sb26.sb-hidden.sb-layer, .sb26.sb-hidden.sb-trash, #sb26s.sb-hidden .sb-pad, #sb26s.sb-hidden .sb-padbtn { display: none; }
 
   /* one sheet of paper: the pad's top sheet and every note on the page */
-  .sb26 .sb-paper { position: absolute; left: 0; top: 0; width: ${SIZE}px; height: ${SIZE}px; pointer-events: auto; touch-action: none;
-    background: linear-gradient(180deg, #fff27a 0%, #ffe95c 18%, #fde353 70%, #f6d846 100%);
+  .sb26 .sb-paper { position: absolute; left: 0; top: 0; width: ${BASE}px; height: ${BASE}px; pointer-events: auto; touch-action: none;
+    background: linear-gradient(180deg, #f6f0ba 0%, #f0de86 100%);
     transform-origin: 50% 0; will-change: transform; -webkit-user-select: none; user-select: none; }
   .sb26 .sb-paper::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 22px; background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,0)); pointer-events: none; }
   .sb26 .sb-shade { position: absolute; inset: 0; pointer-events: none; opacity: 0;
@@ -67,21 +80,23 @@
 
   .sb26 .sb-ta { position: absolute; left: 14px; right: 14px; top: 22px; bottom: 14px; width: auto; height: auto; margin: 0; padding: 0;
     border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: #1d1a10; caret-color: #1d1a10;
-    font: 400 18px/23px 'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; overflow-wrap: anywhere; white-space: pre-wrap;
+    font-size: 18px; line-height: 23px; font-family: 'Shantell Sans', cursive; overflow-wrap: anywhere; white-space: pre-wrap;
     pointer-events: none; -webkit-user-select: text; user-select: text; }
   .sb26 .sb-editing .sb-ta { pointer-events: auto; }
+  .sb26 .sb-f-apple .sb-ta { font-family: 'Homemade Apple', cursive; line-height: 27px; }
+  .sb26 .sb-f-salt .sb-ta { font-family: 'Rock Salt', cursive; line-height: 27px; }
   .sb26 .sb-ta::placeholder { color: rgba(60,50,10,.35); }
   .sb26 .sb-ta::selection { background: rgba(0,0,0,.16); }
 
   /* the pad */
-  .sb26 .sb-pad { position: absolute; right: 16px; bottom: 68px; width: ${SIZE}px; height: ${SIZE + 8}px;
+  .sb26 .sb-pad { position: absolute; right: 16px; bottom: 68px; width: ${BASE}px; height: ${BASE + 8}px;
     transition: transform .3s cubic-bezier(.2,.9,.3,1.1), opacity .2s; }
   .sb26 .sb-pad.sb-closed { transform: translateY(24px); opacity: 0; visibility: hidden; transition: transform .2s, opacity .2s, visibility 0s .2s; }
-  .sb26 .sb-under { position: absolute; left: 0; width: ${SIZE}px; height: ${SIZE}px; background: #ecc93c; pointer-events: none; }
-  .sb26 .sb-under:nth-child(1) { top: 8px; background: #c9a826; box-shadow: 0 10px 14px -8px rgba(0,0,0,.6); }
-  .sb26 .sb-under:nth-child(2) { top: 6px; background: #dcb832; }
-  .sb26 .sb-under:nth-child(3) { top: 4px; background: #e8c63c; }
-  .sb26 .sb-under:nth-child(4) { top: 2px; background: #f3d446; }
+  .sb26 .sb-under { position: absolute; left: 0; width: ${BASE}px; height: ${BASE}px; background: #e6d47e; pointer-events: none; }
+  .sb26 .sb-under:nth-child(1) { top: 8px; background: #c9b263; box-shadow: 0 10px 14px -8px rgba(0,0,0,.6); }
+  .sb26 .sb-under:nth-child(2) { top: 6px; background: #d8c172; }
+  .sb26 .sb-under:nth-child(3) { top: 4px; background: #e3ce7e; }
+  .sb26 .sb-under:nth-child(4) { top: 2px; background: #ecd98a; }
   .sb26 .sb-sheet { cursor: default; box-shadow: 0 1px 0 rgba(0,0,0,.12); }
   .sb26 .sb-sheet.sb-grab-zone { cursor: grab; }
   .sb26 .sb-sheet.sb-peeling { cursor: grabbing; box-shadow: 0 18px 22px -12px rgba(0,0,0,.55); }
@@ -90,7 +105,7 @@
   @keyframes sb-fresh { from { opacity: 0; } }
   /* a corner that is already lifting a little, so it is clear where to grab */
   .sb26 .sb-ear { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; pointer-events: none; transition: width .15s, height .15s;
-    background: linear-gradient(315deg, rgba(0,0,0,0) 0 48%, rgba(90,70,0,.22) 50%, #fff6a0 54%, #f5da55 100%); }
+    background: linear-gradient(315deg, rgba(0,0,0,0) 0 48%, rgba(90,70,0,.22) 50%, #fbf7d6 54%, #efdf93 100%); }
   .sb26 .sb-sheet.sb-grab-zone .sb-ear { width: 30px; height: 30px; }
   .sb26 .sb-sheet.sb-peeling .sb-ear { width: 0; height: 0; }
   .sb26 .sb-hint { position: absolute; right: 0; bottom: calc(100% + 8px); white-space: nowrap; color: rgba(238,238,238,.7); text-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; transition: opacity .3s; }
@@ -103,11 +118,12 @@
   .sb26 .sb-seg button { border: 0; background: none; padding: 0 12px; cursor: pointer; text-transform: uppercase; letter-spacing: .04em; }
   .sb26 .sb-seg button[aria-pressed="true"] { background: #fff; color: #111; }
   .sb26 .sb-seg button:not([aria-pressed="true"]):hover { background: rgba(255,255,255,.08); }
+  .sb26 .sb-fonts button { text-transform: none; letter-spacing: 0; font-size: 14px; padding: 0 10px; }
   .sb26 .sb-padbtn { width: 40px; height: 40px; padding: 0; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); cursor: pointer; display: grid; place-items: center; }
   .sb26 .sb-padbtn:hover { border-color: rgba(255,255,255,.5); }
   .sb26 .sb-padbtn[aria-expanded="true"] { background: #fff; border-color: #fff; }
-  .sb26 .sb-padbtn i { display: block; width: 18px; height: 18px; background: #ffe95c; box-shadow: 0 2px 0 #c9a826; }
-  .sb26 .sb-padbtn[aria-expanded="true"] i { box-shadow: 0 2px 0 #c9a826, 0 0 0 1px rgba(0,0,0,.15); }
+  .sb26 .sb-padbtn i { display: block; width: 18px; height: 18px; background: linear-gradient(180deg, #f6f0ba, #f0de86); box-shadow: 0 2px 0 #c9b263; }
+  .sb26 .sb-padbtn[aria-expanded="true"] i { box-shadow: 0 2px 0 #c9b263, 0 0 0 1px rgba(0,0,0,.15); }
   .sb26 button:focus-visible { outline: 2px solid #28e5b0; outline-offset: 2px; }
 
   /* the trash can */
@@ -127,12 +143,15 @@
     .sb26 .sb-note.sb-full, .sb26 .sb-sheet.sb-fresh, .sb26.sb-trash.sb-gulp { animation: none; }
   }`;
 
+  // Draw the stylesheet at SCALE: every length over 1.5px is scaled; hairlines stay.
+  const scaledCss = css.replace(/(\d*\.?\d+)px/g, (m, v) => (Number(v) <= 1.5 ? m : +(Number(v) * SCALE).toFixed(2) + 'px'));
+
   function addFonts() {
     const have = [...document.querySelectorAll('link[rel="stylesheet"]')].map((l) => l.href).join(' ');
-    if (/Schibsted\+Grotesk/.test(have) && /JetBrains\+Mono/.test(have)) return;
+    if (/Shantell\+Sans/.test(have)) return;
     const l = document.createElement('link');
     l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Schibsted+Grotesk:wght@400&display=swap';
+    l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Shantell+Sans&family=Homemade+Apple&family=Rock+Salt&display=swap';
     document.head.append(l);
   }
 
@@ -162,7 +181,10 @@
   padBtn.title = 'Sticky notes';
   padBtn.setAttribute('aria-label', 'Sticky note pad');
   padBtn.setAttribute('aria-expanded', 'false');
-  dock.append(seg, padBtn);
+  const fontSeg = el('div', 'sb-seg sb-fonts', FONTS.map((f) => `<button type="button" data-f="${f.id}" title="${f.name}" aria-label="${f.name}" style="font-family:${f.family.replace(/"/g, '')}">Aa</button>`).join(''));
+  fontSeg.setAttribute('role', 'group');
+  fontSeg.setAttribute('aria-label', 'Pen for the next note');
+  dock.append(fontSeg, seg, padBtn);
   root.append(pad, dock);
   const parts = [layer, root, trash];
 
@@ -179,6 +201,13 @@
   let notes = [];            // { id, fx (fraction of page width), py (page px), r, text, z, el, ta }
   let topZ = 1;
   let visible = store.get(VIS_KEY, true) !== false;
+  let font = fontOf(store.get(FONT_KEY, FONTS[0].id)).id;
+  function setFont(id) {
+    font = fontOf(id).id;
+    store.set(FONT_KEY, font);
+    for (const b of fontSeg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.f === font));
+    if (sheet) sheet.className = sheet.className.replace(/ ?sb-f-\w+/g, '') + ` sb-f-${font}`;
+  }
 
   // Page width (without the scrollbar). x is kept as a fraction of it, y in page px.
   const W = () => document.documentElement.clientWidth || window.innerWidth;
@@ -187,7 +216,7 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   function save() {
-    store.set(KEY, notes.map(({ id, fx, py, r, text, z }) => ({ id, fx, py: Math.round(py), r, text, z })));
+    store.set(KEY, notes.map(({ id, fx, py, r, text, z, f }) => ({ id, fx, py: Math.round(py), r, text, z, f })));
     updateCount();
   }
   let saveTimer = 0;
@@ -216,7 +245,7 @@
   // Top-left corner in page px: x from the stored fraction of the page width
   // (so notes stay put across window sizes), y as stored.
   function placeOf(n) {
-    const x = clamp(n.fx * W() - SIZE / 2, -SIZE + 48, W() - 48);
+    const x = clamp(n.fx * W() - SIZE / 2, -SIZE + 48 * SCALE, W() - 48 * SCALE);
     const y = Math.max(0, n.py - SIZE / 2);
     return { x, y };
   }
@@ -231,9 +260,9 @@
   const rest = (n) => `rotate(${n.r}deg)`;
 
   function makeNote(data) {
-    const n = { id: data.id || uid(), fx: data.fx, py: data.py ?? data.fy * window.innerHeight, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ };
+    const n = { id: data.id || uid(), fx: data.fx, py: data.py ?? data.fy * window.innerHeight, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ, f: fontOf(data.f || font).id };
     topZ = Math.max(topZ, n.z);
-    n.el = el('div', 'sb-paper sb-note');
+    n.el = el('div', `sb-paper sb-note sb-f-${n.f}`);
     n.ta = el('textarea', 'sb-ta');
     n.ta.value = n.text;
     n.ta.spellcheck = false;
@@ -318,7 +347,7 @@
 
   function overTrash(x, y) {
     const r = trash.getBoundingClientRect();
-    const m = 28; // generous: "drag it to the bottom left"
+    const m = 28 * SCALE; // generous: "drag it to the bottom left"
     return x > r.left - m && x < r.right + m && y > r.top - m && y < r.bottom + m;
   }
 
@@ -398,7 +427,7 @@
 
   let sheet;
   function newSheet() {
-    sheet = el('div', 'sb-paper sb-sheet sb-fresh');
+    sheet = el('div', `sb-paper sb-sheet sb-fresh sb-f-${font}`);
     sheet.append(el('div', 'sb-shade'), el('div', 'sb-ear'));
     pad.insertBefore(sheet, hint);
     sheet.addEventListener('pointermove', (e) => {
@@ -416,7 +445,7 @@
     const gx = e.clientX - box.left, gy = e.clientY - box.top;
     e.preventDefault();
     if (gy < SIZE * GRAB_FROM) { // the top is stuck down: a little wobble says "not here"
-      s.animate([{ transform: 'perspective(700px) rotateX(0)' }, { transform: 'perspective(700px) rotateX(-8deg)' }, { transform: 'perspective(700px) rotateX(0)' }], { duration: 220 });
+      s.animate([{ transform: `perspective(${PERSP}px) rotateX(0)` }, { transform: `perspective(${PERSP}px) rotateX(-8deg)` }, { transform: `perspective(${PERSP}px) rotateX(0)` }], { duration: 220 });
       return;
     }
     const id = e.pointerId;
@@ -449,7 +478,7 @@
       }
       rx = Math.min(rx, -6); // as soon as it's held, the bottom lifts off the pad a little
       state = { mx, my, rz, rx, dx, dy };
-      s.style.transform = `translate(${mx}px, ${my}px) perspective(700px) rotateZ(${rz}deg) rotateX(${rx}deg)`;
+      s.style.transform = `translate(${mx}px, ${my}px) perspective(${PERSP}px) rotateZ(${rz}deg) rotateX(${rx}deg)`;
       shade.style.opacity = String(clamp(0.3 + -rx / 60, 0, 1));
       return Math.hypot(dx, dy);
     };
@@ -485,11 +514,11 @@
       // Start from exactly where the peeling sheet was drawn, then flatten out in the hand.
       const { mx, my, rz, rx, dx, dy } = state;
       n.el.style.transition = 'none';
-      n.el.style.transform = `translate(${mx - dx}px, ${my - dy}px) perspective(700px) rotateZ(${rz}deg) rotateX(${rx}deg)`;
+      n.el.style.transform = `translate(${mx - dx}px, ${my - dy}px) perspective(${PERSP}px) rotateZ(${rz}deg) rotateX(${rx}deg)`;
       n.el.classList.add('sb-lifted');
       void n.el.offsetWidth;
       n.el.style.transition = 'transform .22s cubic-bezier(.2,.9,.3,1.1), box-shadow .2s';
-      n.el.style.transform = `translate(0px, 0px) perspective(700px) rotateZ(${n.r}deg) rotateX(0deg) scale(1.03)`;
+      n.el.style.transform = `translate(0px, 0px) perspective(${PERSP}px) rotateZ(${n.r}deg) rotateX(0deg) scale(1.03)`;
       setTimeout(() => { n.el.style.transition = ''; }, 240);
       s.remove();
       newSheet();
@@ -518,7 +547,7 @@
   function start() {
     addFonts();
     const style = el('style');
-    style.textContent = css;
+    style.textContent = scaledCss;
     document.head.append(style);
     document.body.append(layer, root, trash);
 
@@ -536,6 +565,11 @@
       const b = e.target.closest('button');
       if (b) setVisible(b.dataset.v === '1');
     });
+    fontSeg.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (b) setFont(b.dataset.f);
+    });
+    setFont(font);
     setVisible(visible);
     if (OPEN_ON_LOAD && visible) setPad(true);
 
