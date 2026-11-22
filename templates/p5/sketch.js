@@ -1,5 +1,5 @@
 // {{TITLE}}
-// Canvas is 2000×2000. mouseX / mouseY are already in canvas coordinates.
+// Canvas is 2048×2048. mouseX / mouseY are already in canvas coordinates.
 // S saves a PNG, F toggles fullscreen.
 
 function setup() {

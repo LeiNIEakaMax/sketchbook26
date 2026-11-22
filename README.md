@@ -1,6 +1,6 @@
 # CC2026
 
-30 interactive creative-coding challenges. Every piece is a 2000 × 2000 canvas, runs in the browser, and lives on one gallery site.
+30 interactive creative-coding challenges. Every piece is a 2048 × 2048 canvas, runs in the browser, and lives on one gallery site.
 
 ## Start a challenge
 
@@ -15,8 +15,8 @@ Each challenge gets today's date in `challenges.json` (add `--date 2026-11-20` t
 
 In every p5 challenge:
 
-- `stage()` replaces `createCanvas()`. It makes a 2000 × 2000 canvas and scales it to fit the window.
-- `mouseX`, `mouseY` and `touches` are already in 0–2000 canvas coordinates.
+- `stage()` replaces `createCanvas()`. It makes a 2048 × 2048 canvas and scales it to fit the window.
+- `mouseX`, `mouseY` and `touches` are already in 0–2048 canvas coordinates.
 - **S** saves a full-size PNG, **F** toggles fullscreen.
 - Drop a `thumb.png` (any square size, ~600px is plenty) in the folder and the gallery shows it.
 
@@ -35,7 +35,7 @@ Each challenge folder is self-contained, including its own copy of `stage.js`, s
 
 ## Other stacks
 
-A challenge only needs an `index.html` in its folder. To use three.js, plain Canvas, shaders or anything else, either edit the copied folder, or add a new folder under `templates/` and run `npm run new -- 05 "Name" --template <folder>`. Keep the 2000 × 2000 rule and the PNG export.
+A challenge only needs an `index.html` in its folder. To use three.js, plain Canvas, shaders or anything else, either edit the copied folder, or add a new folder under `templates/` and run `npm run new -- 05 "Name" --template <folder>`. Keep the 2048 × 2048 rule and the PNG export.
 
 ## Workflow
 

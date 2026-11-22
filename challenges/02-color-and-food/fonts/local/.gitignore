@@ -1,0 +1,4 @@
+# Fonts whose licence does not allow putting them in the repo.
+# Keep them on your own machine only.
+*
+!.gitignore
