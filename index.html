@@ -4,32 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CC2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Schibsted+Grotesk:wght@400;700&display=swap">
   <style>
-    :root { --bg: #111; --fg: #eee; --dim: #777; --line: #2a2a2a; --accent: #ff5a36; }
+    :root { --bg: #111; --fg: #eee; --dim: #777; --line: #2a2a2a; --accent: #28e5b0; --sans: 'Schibsted Grotesk', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
     header { padding: 48px 24px 24px; max-width: 1200px; margin: 0 auto; }
-    h1 { margin: 0; font-size: 40px; letter-spacing: -0.02em; }
+    h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; }
     header p { margin: 8px 0 0; color: var(--dim); }
     .progress { margin-top: 16px; height: 4px; background: var(--line); }
     .progress span { display: block; height: 100%; background: var(--accent); }
     main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .card { display: block; color: inherit; text-decoration: none; border: 1px solid var(--line); }
+    .card { display: flex; flex-direction: column; color: inherit; text-decoration: none; border: 1px solid var(--line); }
     .thumb { aspect-ratio: 1; background: #181818; display: grid; place-items: center; overflow: hidden; }
     .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .thumb .n { font-size: 48px; color: #333; }
-    .meta { padding: 10px 12px; }
-    .meta b { display: block; font-weight: 600; }
-    .meta small { color: var(--dim); }
-    .meta time { display: block; color: var(--dim); font-size: 12px; margin-bottom: 2px; }
+    .thumb .n { font: 48px/1.5 var(--mono); color: #333; }
+    .meta { flex: 1; padding: 10px 12px; }
+    .meta b { display: block; font-weight: 700; }
+    .meta small { display: block; font-size: 12.5px; color: var(--dim); }
+    .meta time { display: block; color: var(--dim); font: 12px/1.5 var(--mono); margin-bottom: 2px; }
     a.card:hover { border-color: var(--accent); }
     .card.empty { opacity: 0.45; }
-    .phone { position: fixed; right: 16px; bottom: 16px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font-size: 12px; }
+    .phone { position: fixed; right: 16px; bottom: 16px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font: 12px/1.5 var(--mono); }
     .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
     .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
     .phone p a { color: var(--fg); }
     .phone button { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--dim); font: inherit; cursor: pointer; }
     .phone button:hover { color: var(--fg); }
+    /* AutoCAD-style cursor: full-viewport dashed lines, a crosshair, and x/y readouts. Mouse and trackpad only. */
+    .cad, .cad * { cursor: none !important; }
+    #cad { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: none; }
+    .cad #cad.on { display: block; }
+    #cad svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    #cad .guide { stroke: var(--accent); stroke-width: 0.5; stroke-dasharray: 4 4; }
+    #cad .bar { stroke: var(--accent); stroke-width: 3; }
+    #cad span { position: absolute; font: 8px/11px var(--mono); color: var(--accent); white-space: nowrap; }
+    #cad .lx { top: 3px; }
+    #cad .ly { right: 4px; }
   </style>
 </head>
 <body>
@@ -39,6 +52,16 @@
     <div class="progress"><span id="bar" style="width:0"></span></div>
   </header>
   <main id="grid"></main>
+  <div id="cad" aria-hidden="true">
+    <svg>
+      <line class="guide" id="cad-h"/><line class="guide" id="cad-v"/>
+      <g id="cad-x">
+        <line class="bar" x1="-21" y1="0" x2="-7.5" y2="0"/><line class="bar" x1="8" y1="0" x2="21.5" y2="0"/>
+        <line class="bar" x1="0" y1="-21" x2="0" y2="-7.5"/><line class="bar" x1="0" y1="8" x2="0" y2="21.5"/>
+      </g>
+    </svg>
+    <span class="lx" id="cad-lx"></span><span class="ly" id="cad-ly"></span>
+  </div>
   <script>
     const TOTAL = 30;
     const pad = (n) => String(n).padStart(2, '0');
@@ -63,6 +86,30 @@
           </a>`;
         }).join('');
       });
+
+    // AutoCAD-style cursor (mouse and trackpad only; touch screens keep their normal behaviour).
+    if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      const cad = document.getElementById('cad');
+      const [h, v, x, lx, ly] = ['cad-h', 'cad-v', 'cad-x', 'cad-lx', 'cad-ly'].map((id) => document.getElementById(id));
+      let px = 0, py = 0, queued = false;
+      const draw = () => {
+        queued = false;
+        const W = innerWidth, H = innerHeight;
+        h.setAttribute('x1', 0); h.setAttribute('x2', W); h.setAttribute('y1', py); h.setAttribute('y2', py);
+        v.setAttribute('y1', 0); v.setAttribute('y2', H); v.setAttribute('x1', px); v.setAttribute('x2', px);
+        x.setAttribute('transform', `translate(${px} ${py})`);
+        lx.textContent = `x=${Math.round(px)}`; lx.style.left = px + 4 + 'px';
+        ly.textContent = `y=${Math.round(py)}`; ly.style.top = py - 14 + 'px';
+      };
+      document.documentElement.classList.add('cad');
+      addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch') return;
+        px = e.clientX; py = e.clientY; cad.classList.add('on');
+        if (!queued) { queued = true; requestAnimationFrame(draw); }
+      }, { passive: true });
+      document.documentElement.addEventListener('pointerleave', () => cad.classList.remove('on'));
+      addEventListener('blur', () => cad.classList.remove('on'));
+    }
 
     // Local only: a QR code that opens this gallery on a phone on the same Wi‑Fi.
     // npm run serve provides /__lan.json; the deployed site never shows this.
