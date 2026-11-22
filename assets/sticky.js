@@ -41,88 +41,90 @@
 
   const css = `
   #sb26s { position: fixed; inset: 0; z-index: 900; pointer-events: none; font: 11px/1 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; color: #eee; -webkit-tap-highlight-color: transparent; }
-  #sb26s * { box-sizing: border-box; }
-  #sb26s button { font: inherit; color: inherit; margin: 0; }
-  #sb26s .sb-layer { position: absolute; inset: 0; }
-  #sb26s.sb-hidden .sb-layer, #sb26s.sb-hidden .sb-pad, #sb26s.sb-hidden .sb-padbtn, #sb26s.sb-hidden .sb-trash { display: none; }
+  .sb26 * { box-sizing: border-box; }
+  .sb26 button { font: inherit; color: inherit; margin: 0; }
+  /* Notes live on the page itself (document coordinates), so they scroll with it.
+     The pad, toggle and trash stay fixed to the window. */
+  .sb26.sb-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; }
+  .sb26.sb-hidden.sb-layer, .sb26.sb-hidden.sb-trash, #sb26s.sb-hidden .sb-pad, #sb26s.sb-hidden .sb-padbtn { display: none; }
 
   /* one sheet of paper: the pad's top sheet and every note on the page */
-  #sb26s .sb-paper { position: absolute; left: 0; top: 0; width: ${SIZE}px; height: ${SIZE}px; pointer-events: auto; touch-action: none;
+  .sb26 .sb-paper { position: absolute; left: 0; top: 0; width: ${SIZE}px; height: ${SIZE}px; pointer-events: auto; touch-action: none;
     background: linear-gradient(180deg, #fff27a 0%, #ffe95c 18%, #fde353 70%, #f6d846 100%);
     transform-origin: 50% 0; will-change: transform; -webkit-user-select: none; user-select: none; }
-  #sb26s .sb-paper::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 22px; background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,0)); pointer-events: none; }
-  #sb26s .sb-shade { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  .sb26 .sb-paper::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 22px; background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,0)); pointer-events: none; }
+  .sb26 .sb-shade { position: absolute; inset: 0; pointer-events: none; opacity: 0;
     background: linear-gradient(0deg, rgba(120,90,0,.28) 0%, rgba(255,255,255,.35) 22%, rgba(0,0,0,0) 45%, rgba(0,0,0,.08) 100%); }
 
-  #sb26s .sb-note { cursor: grab; transition: transform .28s cubic-bezier(.2,.9,.3,1.2), box-shadow .2s;
+  .sb26 .sb-note { cursor: grab; transition: transform .28s cubic-bezier(.2,.9,.3,1.2), box-shadow .2s;
     box-shadow: 0 1px 1px rgba(0,0,0,.18), 0 12px 14px -12px rgba(0,0,0,.65); }
-  #sb26s .sb-note.sb-lifted { cursor: grabbing; transition: box-shadow .2s; box-shadow: 0 2px 3px rgba(0,0,0,.2), 0 26px 30px -14px rgba(0,0,0,.6); }
-  #sb26s .sb-note.sb-editing { cursor: default; }
-  #sb26s .sb-note.sb-editing::after { content: ''; position: absolute; inset: -3px; border: 1.5px solid #fff; pointer-events: none; }
-  #sb26s .sb-note.sb-full { animation: sb-full .28s; }
+  .sb26 .sb-note.sb-lifted { cursor: grabbing; transition: box-shadow .2s; box-shadow: 0 2px 3px rgba(0,0,0,.2), 0 26px 30px -14px rgba(0,0,0,.6); }
+  .sb26 .sb-note.sb-editing { cursor: default; }
+  .sb26 .sb-note.sb-editing::after { content: ''; position: absolute; inset: -3px; border: 1.5px solid #fff; pointer-events: none; }
+  .sb26 .sb-note.sb-full { animation: sb-full .28s; }
   @keyframes sb-full { 25% { translate: -4px 0; } 50% { translate: 4px 0; } 75% { translate: -2px 0; } }
-  #sb26s .sb-note.sb-gone { transition: transform .26s ease-in, opacity .26s ease-in; opacity: 0; }
+  .sb26 .sb-note.sb-gone { transition: transform .26s ease-in, opacity .26s ease-in; opacity: 0; }
 
-  #sb26s .sb-ta { position: absolute; left: 14px; right: 14px; top: 22px; bottom: 14px; width: auto; height: auto; margin: 0; padding: 0;
+  .sb26 .sb-ta { position: absolute; left: 14px; right: 14px; top: 22px; bottom: 14px; width: auto; height: auto; margin: 0; padding: 0;
     border: 0; outline: 0; resize: none; overflow: hidden; background: transparent; color: #1d1a10; caret-color: #1d1a10;
     font: 400 18px/23px 'Schibsted Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; overflow-wrap: anywhere; white-space: pre-wrap;
     pointer-events: none; -webkit-user-select: text; user-select: text; }
-  #sb26s .sb-editing .sb-ta { pointer-events: auto; }
-  #sb26s .sb-ta::placeholder { color: rgba(60,50,10,.35); }
-  #sb26s .sb-ta::selection { background: rgba(0,0,0,.16); }
+  .sb26 .sb-editing .sb-ta { pointer-events: auto; }
+  .sb26 .sb-ta::placeholder { color: rgba(60,50,10,.35); }
+  .sb26 .sb-ta::selection { background: rgba(0,0,0,.16); }
 
   /* the pad */
-  #sb26s .sb-pad { position: absolute; z-index: 1000000; right: 16px; bottom: 68px; width: ${SIZE}px; height: ${SIZE + 8}px;
+  .sb26 .sb-pad { position: absolute; right: 16px; bottom: 68px; width: ${SIZE}px; height: ${SIZE + 8}px;
     transition: transform .3s cubic-bezier(.2,.9,.3,1.1), opacity .2s; }
-  #sb26s .sb-pad.sb-closed { transform: translateY(24px); opacity: 0; visibility: hidden; transition: transform .2s, opacity .2s, visibility 0s .2s; }
-  #sb26s .sb-under { position: absolute; left: 0; width: ${SIZE}px; height: ${SIZE}px; background: #ecc93c; pointer-events: none; }
-  #sb26s .sb-under:nth-child(1) { top: 8px; background: #c9a826; box-shadow: 0 10px 14px -8px rgba(0,0,0,.6); }
-  #sb26s .sb-under:nth-child(2) { top: 6px; background: #dcb832; }
-  #sb26s .sb-under:nth-child(3) { top: 4px; background: #e8c63c; }
-  #sb26s .sb-under:nth-child(4) { top: 2px; background: #f3d446; }
-  #sb26s .sb-sheet { cursor: default; box-shadow: 0 1px 0 rgba(0,0,0,.12); }
-  #sb26s .sb-sheet.sb-grab-zone { cursor: grab; }
-  #sb26s .sb-sheet.sb-peeling { cursor: grabbing; box-shadow: 0 18px 22px -12px rgba(0,0,0,.55); }
-  #sb26s .sb-sheet.sb-back { transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
-  #sb26s .sb-sheet.sb-fresh { animation: sb-fresh .25s ease-out; }
+  .sb26 .sb-pad.sb-closed { transform: translateY(24px); opacity: 0; visibility: hidden; transition: transform .2s, opacity .2s, visibility 0s .2s; }
+  .sb26 .sb-under { position: absolute; left: 0; width: ${SIZE}px; height: ${SIZE}px; background: #ecc93c; pointer-events: none; }
+  .sb26 .sb-under:nth-child(1) { top: 8px; background: #c9a826; box-shadow: 0 10px 14px -8px rgba(0,0,0,.6); }
+  .sb26 .sb-under:nth-child(2) { top: 6px; background: #dcb832; }
+  .sb26 .sb-under:nth-child(3) { top: 4px; background: #e8c63c; }
+  .sb26 .sb-under:nth-child(4) { top: 2px; background: #f3d446; }
+  .sb26 .sb-sheet { cursor: default; box-shadow: 0 1px 0 rgba(0,0,0,.12); }
+  .sb26 .sb-sheet.sb-grab-zone { cursor: grab; }
+  .sb26 .sb-sheet.sb-peeling { cursor: grabbing; box-shadow: 0 18px 22px -12px rgba(0,0,0,.55); }
+  .sb26 .sb-sheet.sb-back { transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+  .sb26 .sb-sheet.sb-fresh { animation: sb-fresh .25s ease-out; }
   @keyframes sb-fresh { from { opacity: 0; } }
   /* a corner that is already lifting a little, so it is clear where to grab */
-  #sb26s .sb-ear { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; pointer-events: none; transition: width .15s, height .15s;
+  .sb26 .sb-ear { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; pointer-events: none; transition: width .15s, height .15s;
     background: linear-gradient(315deg, rgba(0,0,0,0) 0 48%, rgba(90,70,0,.22) 50%, #fff6a0 54%, #f5da55 100%); }
-  #sb26s .sb-sheet.sb-grab-zone .sb-ear { width: 30px; height: 30px; }
-  #sb26s .sb-sheet.sb-peeling .sb-ear { width: 0; height: 0; }
-  #sb26s .sb-hint { position: absolute; right: 0; bottom: calc(100% + 8px); white-space: nowrap; color: rgba(238,238,238,.7); text-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; transition: opacity .3s; }
-  #sb26s .sb-hint.sb-off { opacity: 0; }
+  .sb26 .sb-sheet.sb-grab-zone .sb-ear { width: 30px; height: 30px; }
+  .sb26 .sb-sheet.sb-peeling .sb-ear { width: 0; height: 0; }
+  .sb26 .sb-hint { position: absolute; right: 0; bottom: calc(100% + 8px); white-space: nowrap; color: rgba(238,238,238,.7); text-shadow: 0 1px 2px rgba(0,0,0,.6); pointer-events: none; transition: opacity .3s; }
+  .sb26 .sb-hint.sb-off { opacity: 0; }
 
   /* controls: squared off, white active token */
-  #sb26s .sb-dock { position: absolute; z-index: 1000003; right: 16px; bottom: 16px; display: flex; gap: 8px; pointer-events: auto; }
-  #sb26s .sb-seg { display: flex; height: 40px; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); }
-  #sb26s .sb-seg span { display: flex; align-items: center; padding: 0 10px; color: rgba(238,238,238,.6); border-right: 1px solid rgba(255,255,255,.12); }
-  #sb26s .sb-seg button { border: 0; background: none; padding: 0 12px; cursor: pointer; text-transform: uppercase; letter-spacing: .04em; }
-  #sb26s .sb-seg button[aria-pressed="true"] { background: #fff; color: #111; }
-  #sb26s .sb-seg button:not([aria-pressed="true"]):hover { background: rgba(255,255,255,.08); }
-  #sb26s .sb-padbtn { width: 40px; height: 40px; padding: 0; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); cursor: pointer; display: grid; place-items: center; }
-  #sb26s .sb-padbtn:hover { border-color: rgba(255,255,255,.5); }
-  #sb26s .sb-padbtn[aria-expanded="true"] { background: #fff; border-color: #fff; }
-  #sb26s .sb-padbtn i { display: block; width: 18px; height: 18px; background: #ffe95c; box-shadow: 0 2px 0 #c9a826; }
-  #sb26s .sb-padbtn[aria-expanded="true"] i { box-shadow: 0 2px 0 #c9a826, 0 0 0 1px rgba(0,0,0,.15); }
-  #sb26s button:focus-visible { outline: 2px solid #28e5b0; outline-offset: 2px; }
+  .sb26 .sb-dock { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 8px; pointer-events: auto; }
+  .sb26 .sb-seg { display: flex; height: 40px; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); }
+  .sb26 .sb-seg span { display: flex; align-items: center; padding: 0 10px; color: rgba(238,238,238,.6); border-right: 1px solid rgba(255,255,255,.12); }
+  .sb26 .sb-seg button { border: 0; background: none; padding: 0 12px; cursor: pointer; text-transform: uppercase; letter-spacing: .04em; }
+  .sb26 .sb-seg button[aria-pressed="true"] { background: #fff; color: #111; }
+  .sb26 .sb-seg button:not([aria-pressed="true"]):hover { background: rgba(255,255,255,.08); }
+  .sb26 .sb-padbtn { width: 40px; height: 40px; padding: 0; border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); cursor: pointer; display: grid; place-items: center; }
+  .sb26 .sb-padbtn:hover { border-color: rgba(255,255,255,.5); }
+  .sb26 .sb-padbtn[aria-expanded="true"] { background: #fff; border-color: #fff; }
+  .sb26 .sb-padbtn i { display: block; width: 18px; height: 18px; background: #ffe95c; box-shadow: 0 2px 0 #c9a826; }
+  .sb26 .sb-padbtn[aria-expanded="true"] i { box-shadow: 0 2px 0 #c9a826, 0 0 0 1px rgba(0,0,0,.15); }
+  .sb26 button:focus-visible { outline: 2px solid #28e5b0; outline-offset: 2px; }
 
   /* the trash can */
-  #sb26s .sb-trash { position: absolute; z-index: 1000002; pointer-events: none; left: 16px; bottom: 16px; width: 64px; height: 64px; display: grid; place-items: center;
+  .sb26.sb-trash { position: fixed; z-index: 1000; pointer-events: none; left: 16px; bottom: 16px; width: 64px; height: 64px; display: grid; place-items: center;
     border: 1px solid rgba(255,255,255,.22); background: rgba(20,20,20,.9); color: #eee;
     opacity: 0; transform: translateY(12px); transition: opacity .2s, transform .2s, border-color .15s, background .15s, color .15s; }
-  #sb26s .sb-trash.sb-show { opacity: 1; transform: none; }
-  #sb26s .sb-trash.sb-armed { border-color: #ff5a4a; background: rgba(255,90,74,.16); color: #ff7a6c; transform: scale(1.08); }
-  #sb26s .sb-trash svg { width: 30px; height: 30px; overflow: visible; }
-  #sb26s .sb-trash .sb-lid { transform-origin: 3px 6px; transition: transform .15s; }
-  #sb26s .sb-trash.sb-armed .sb-lid { transform: rotate(-28deg) translateY(-1px); }
-  #sb26s .sb-trash.sb-gulp { animation: sb-gulp .3s; }
+  .sb26.sb-trash.sb-show { opacity: 1; transform: none; }
+  .sb26.sb-trash.sb-armed { border-color: #ff5a4a; background: rgba(255,90,74,.16); color: #ff7a6c; transform: scale(1.08); }
+  .sb26.sb-trash svg { width: 30px; height: 30px; overflow: visible; }
+  .sb26.sb-trash .sb-lid { transform-origin: 3px 6px; transition: transform .15s; }
+  .sb26.sb-trash.sb-armed .sb-lid { transform: rotate(-28deg) translateY(-1px); }
+  .sb26.sb-trash.sb-gulp { animation: sb-gulp .3s; }
   @keyframes sb-gulp { 40% { transform: scale(.9); } }
 
   @media (prefers-reduced-motion: reduce) {
-    #sb26s .sb-note, #sb26s .sb-pad, #sb26s .sb-sheet.sb-back, #sb26s .sb-trash { transition-duration: .01s; }
-    #sb26s .sb-note.sb-full, #sb26s .sb-sheet.sb-fresh, #sb26s .sb-trash.sb-gulp { animation: none; }
+    .sb26 .sb-note, .sb26 .sb-pad, .sb26 .sb-sheet.sb-back, .sb26.sb-trash { transition-duration: .01s; }
+    .sb26 .sb-note.sb-full, .sb26 .sb-sheet.sb-fresh, .sb26.sb-trash.sb-gulp { animation: none; }
   }`;
 
   function addFonts() {
@@ -140,12 +142,13 @@
 
   const root = el('div');
   root.id = 'sb26s';
-  const layer = el('div', 'sb-layer');
+  root.className = 'sb26';
+  const layer = el('div', 'sb26 sb-layer');
   const pad = el('div', 'sb-pad sb-closed');
   for (let i = 0; i < 4; i++) pad.append(el('div', 'sb-under'));
   const hint = el('div', 'sb-hint', 'pull from the bottom ↑');
   pad.append(hint);
-  const trash = el('div', 'sb-trash', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true">
+  const trash = el('div', 'sb26 sb-trash', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true">
       <g class="sb-lid"><path d="M3 6h18"/><path d="M9 6V3.5h6V6"/></g>
       <path d="M5.5 6l1.2 15h10.6l1.2-15"/><path d="M10 10v7.5M14 10v7.5"/></svg>`);
   trash.setAttribute('aria-hidden', 'true');
@@ -160,29 +163,31 @@
   padBtn.setAttribute('aria-label', 'Sticky note pad');
   padBtn.setAttribute('aria-expanded', 'false');
   dock.append(seg, padBtn);
-  root.append(layer, trash, pad, dock);
+  root.append(pad, dock);
+  const parts = [layer, root, trash];
 
   // Keep the page's own sketch out of everything that happens on the notes:
   // p5 listens on window, so stopping these here means typing "s" doesn't save a
   // PNG and dragging a note doesn't paint on the canvas underneath.
   // (pointermove is left alone so the home page's crosshair still follows.)
   for (const t of ['mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'touchstart', 'touchmove', 'touchend', 'wheel', 'keydown', 'keyup', 'keypress', 'contextmenu']) {
-    root.addEventListener(t, (e) => { if (e.target !== root) e.stopPropagation(); });
+    for (const part of parts) part.addEventListener(t, (e) => { if (e.target !== root && e.target !== layer) e.stopPropagation(); });
   }
 
   /* ---------- state ---------- */
 
-  let notes = [];            // { id, fx, fy, r, text, z, el, ta }
+  let notes = [];            // { id, fx (fraction of page width), py (page px), r, text, z, el, ta }
   let topZ = 1;
   let visible = store.get(VIS_KEY, true) !== false;
 
-  const W = () => window.innerWidth;
-  const H = () => window.innerHeight;
+  // Page width (without the scrollbar). x is kept as a fraction of it, y in page px.
+  const W = () => document.documentElement.clientWidth || window.innerWidth;
+  const inUI = (a) => !!a && (layer.contains(a) || root.contains(a));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   function save() {
-    store.set(KEY, notes.map(({ id, fx, fy, r, text, z }) => ({ id, fx, fy, r, text, z })));
+    store.set(KEY, notes.map(({ id, fx, py, r, text, z }) => ({ id, fx, py: Math.round(py), r, text, z })));
     updateCount();
   }
   let saveTimer = 0;
@@ -194,10 +199,10 @@
 
   function setVisible(v) {
     visible = v;
-    root.classList.toggle('sb-hidden', !v);
+    for (const part of parts) part.classList.toggle('sb-hidden', !v);
     for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String((b.dataset.v === '1') === v));
     store.set(VIS_KEY, v);
-    if (!v) { setPad(false); if (document.activeElement && root.contains(document.activeElement)) document.activeElement.blur(); }
+    if (!v) { setPad(false); if (inUI(document.activeElement)) document.activeElement.blur(); }
   }
 
   function setPad(open) {
@@ -208,10 +213,11 @@
 
   /* ---------- notes on the page ---------- */
 
-  // Top-left corner in px from the stored centre fractions, kept on screen.
+  // Top-left corner in page px: x from the stored fraction of the page width
+  // (so notes stay put across window sizes), y as stored.
   function placeOf(n) {
     const x = clamp(n.fx * W() - SIZE / 2, -SIZE + 48, W() - 48);
-    const y = clamp(n.fy * H() - SIZE / 2, 0, H() - 48);
+    const y = Math.max(0, n.py - SIZE / 2);
     return { x, y };
   }
 
@@ -225,7 +231,7 @@
   const rest = (n) => `rotate(${n.r}deg)`;
 
   function makeNote(data) {
-    const n = { id: data.id || uid(), fx: data.fx, fy: data.fy, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ };
+    const n = { id: data.id || uid(), fx: data.fx, py: data.py ?? data.fy * window.innerHeight, r: data.r ?? 0, text: data.text || '', z: data.z || ++topZ };
     topZ = Math.max(topZ, n.z);
     n.el = el('div', 'sb-paper sb-note');
     n.ta = el('textarea', 'sb-ta');
@@ -303,9 +309,11 @@
     n.ta.setSelectionRange(end, end);
   }
 
+  // Stacking order among notes, kept in 1..n (all below the pad and trash).
   function toFront(n) {
     n.z = ++topZ;
-    n.el.style.zIndex = n.z;
+    notes.sort((a, b) => a.z - b.z).forEach((m, i) => { m.z = i + 1; m.el.style.zIndex = m.z; });
+    topZ = notes.length;
   }
 
   function overTrash(x, y) {
@@ -317,13 +325,13 @@
   // Drag a note around. fresh = it just came off the pad.
   function startNoteDrag(n, e, fresh) {
     const id = e.pointerId;
-    const gx = e.clientX - n.x, gy = e.clientY - n.y; // grab point inside the note
+    const gx = e.pageX - n.x, gy = e.pageY - n.y; // grab point inside the note
     const sx = e.clientX, sy = e.clientY;
     let moved = fresh, lastX = e.clientX, tilt = 0, vx = 0, raf = 0, armed = false;
     try { n.el.setPointerCapture(id); } catch (err) { /* synthetic pointer */ }
-    if (document.activeElement && document.activeElement !== n.ta && root.contains(document.activeElement)) document.activeElement.blur();
+    if (document.activeElement !== n.ta && inUI(document.activeElement)) document.activeElement.blur();
     toFront(n);
-    n.el.style.zIndex = 1000001;
+    n.el.style.zIndex = 950; // held: above the pad (900), below the trash (1000)
 
     const frame = () => {
       raf = 0;
@@ -340,7 +348,7 @@
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
       if (!moved) { moved = true; n.el.classList.add('sb-lifted'); trash.classList.add('sb-show'); if (document.activeElement === n.ta) n.ta.blur(); }
       vx = ev.clientX - lastX; lastX = ev.clientX;
-      position(n, ev.clientX - gx, ev.clientY - gy);
+      position(n, ev.pageX - gx, ev.pageY - gy);
       armed = overTrash(ev.clientX, ev.clientY);
       trash.classList.toggle('sb-armed', armed);
       if (!raf) raf = requestAnimationFrame(frame);
@@ -359,7 +367,7 @@
       if (!moved) { edit(n); return; }
       if (armed && ev.type === 'pointerup') { throwAway(n); return; }
       n.fx = (n.x + SIZE / 2) / W();
-      n.fy = (n.y + SIZE / 2) / H();
+      n.py = n.y + SIZE / 2;
       n.el.style.transform = rest(n);
       save();
       if (fresh) edit(n);
@@ -373,7 +381,7 @@
 
   function throwAway(n) {
     const r = trash.getBoundingClientRect();
-    const dx = r.left + r.width / 2 - (n.x + SIZE / 2), dy = r.top + r.height / 2 - (n.y + SIZE / 2);
+    const dx = r.left + window.scrollX + r.width / 2 - (n.x + SIZE / 2), dy = r.top + window.scrollY + r.height / 2 - (n.y + SIZE / 2);
     n.el.style.pointerEvents = 'none';
     n.el.classList.add('sb-gone');
     n.el.style.transformOrigin = '50% 50%';
@@ -413,7 +421,7 @@
     }
     const id = e.pointerId;
     try { s.setPointerCapture(id); } catch (err) { /* synthetic pointer */ }
-    if (document.activeElement && root.contains(document.activeElement)) document.activeElement.blur();
+    if (inUI(document.activeElement)) document.activeElement.blur();
     s.classList.remove('sb-back', 'sb-fresh');
     s.classList.add('sb-peeling');
     const shade = s.querySelector('.sb-shade');
@@ -471,9 +479,9 @@
     const detach = (ev) => {
       cleanup();
       try { s.releasePointerCapture(id); } catch (err) { /* fine */ }
-      const fx = (ev.clientX - gx + SIZE / 2) / W(), fy = (ev.clientY - gy + SIZE / 2) / H();
-      const n = makeNote({ fx, fy, r: Math.round((Math.random() * 6 - 3) * 10) / 10 });
-      position(n, ev.clientX - gx, ev.clientY - gy);
+      const x = ev.pageX - gx, y = ev.pageY - gy;
+      const n = makeNote({ fx: (x + SIZE / 2) / W(), py: y + SIZE / 2, r: Math.round((Math.random() * 6 - 3) * 10) / 10 });
+      position(n, x, y);
       // Start from exactly where the peeling sheet was drawn, then flatten out in the hand.
       const { mx, my, rz, rx, dx, dy } = state;
       n.el.style.transition = 'none';
@@ -512,12 +520,12 @@
     const style = el('style');
     style.textContent = css;
     document.head.append(style);
-    document.body.append(root);
+    document.body.append(layer, root, trash);
 
     let saved = store.get(KEY, null);
     if (!Array.isArray(saved)) saved = SEED ? seedNotes() : [];
     saved.sort((a, b) => (a.z || 0) - (b.z || 0)).forEach((d) => {
-      if (typeof d.fx === 'number' && typeof d.fy === 'number') makeNote(d);
+      if (typeof d.fx === 'number' && (typeof d.py === 'number' || typeof d.fy === 'number')) makeNote(d);
     });
     if (SEED && store.get(KEY, null) == null) save();
     updateCount();
@@ -535,7 +543,7 @@
     // Another tab changed this page's notes: follow along (unless typing here).
     window.addEventListener('storage', (e) => {
       if (e.key === VIS_KEY) { setVisible(store.get(VIS_KEY, true) !== false); return; }
-      if (e.key !== KEY || (document.activeElement && root.contains(document.activeElement))) return;
+      if (e.key !== KEY || inUI(document.activeElement)) return;
       notes.forEach((n) => n.el.remove());
       notes = [];
       (store.get(KEY, []) || []).sort((a, b) => (a.z || 0) - (b.z || 0)).forEach(makeNote);
