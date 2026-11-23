@@ -22,7 +22,9 @@
 // alpha, beta and gamma, so you can see how the three angles combine. Watch it
 // near beta = ±90° (phone upright): gamma flips there (gimbal lock).
 //
-// On a computer (no sensor) the crosshair follows the mouse instead.
+// On a computer (no sensor) the crosshair follows the mouse instead, and the
+// wireframe phone and the beta / gamma readouts show the tilt that would have
+// put the cursor there (the mapping run backwards).
 //
 // iOS only hands out motion data on an https:// page, and only after a tap
 // that asks for permission (the Start tilt button does that).
@@ -170,6 +172,25 @@ function wrap180(a) {
   return ((a + 180) % 360 + 360) % 360 - 180;
 }
 
+/* ---------- simulated tilt (desktop) ---------- */
+
+// With no gyro, run the tilt mapping backwards: the cursor's position becomes
+// the tilt that would have put it there, so the wireframe phone shows how you'd
+// hold the phone to reach that spot. The centre is a typical hand-held pose.
+const SIM_BETA = 40;
+
+function simOrient() {
+  if (S.input !== 'pointer' || sensor.orient) return null;
+  const r = S.range;
+  return {
+    alpha: 0,
+    beta: SIM_BETA + map(cur.y, 0, W, -r, r),
+    gamma: map(cur.x, 0, W, -r, r),
+    absolute: false,
+    sim: true,
+  };
+}
+
 /* ---------- sensors ---------- */
 
 async function startTilt() {
@@ -283,8 +304,9 @@ function canvasCursor(hide) {
 function drawReadouts() {
   const x = M, vx = M + 190;
   let y = 250;
-  const o = sensor.orient, m = sensor.motion;
-  const d = o ? tiltDelta() : null;
+  const sim = simOrient();
+  const o = sensor.orient || sim, m = sensor.motion;
+  const d = sensor.orient ? tiltDelta() : null;
   textFont(MONO);
   textAlign(LEFT, BASELINE);
   noStroke();
@@ -300,11 +322,13 @@ function drawReadouts() {
 
   head('ORIENTATION  deg');
   row('alpha', o && o.alpha);
-  row('beta', o && o.beta, d && sensor.zero ? 'Δ ' + signed(wrap180(o.beta - sensor.zero.beta)) : '');
-  row('gamma', o && o.gamma, d && sensor.zero ? 'Δ ' + signed(wrap180(o.gamma - sensor.zero.gamma)) : '');
+  const zero = sim ? { beta: SIM_BETA, gamma: 0 } : sensor.zero;
+  const live = (d || sim) && zero;
+  row('beta', o && o.beta, live ? 'Δ ' + signed(wrap180(o.beta - zero.beta)) : '');
+  row('gamma', o && o.gamma, live ? 'Δ ' + signed(wrap180(o.gamma - zero.gamma)) : '');
   if (o && o.heading != null) row('compass', o.heading);
   fill(DIM); textSize(28);
-  text(o ? (o.absolute ? 'absolute (earth frame)' : 'relative frame') : 'waiting for deviceorientation', x, y);
+  text(sim ? 'simulated from the mouse (no gyro)' : o ? (o.absolute ? 'absolute (earth frame)' : 'relative frame') : 'waiting for deviceorientation', x, y);
   y += 76;
 
   head('ROTATION RATE  deg/s');
@@ -349,7 +373,8 @@ function signed(v) {
 // roughly where your eyes are when you hold it.
 function drawPhone() {
   const cx = W - M - 230, cy = 470, s = 300;
-  const o = sensor.orient;
+  const sim = simOrient();
+  const o = sensor.orient || sim;
   const a = radians(o && o.alpha != null ? o.alpha - (sensor.zero ? sensor.zero.alpha : 0) : 0);
   const b = radians(o && o.beta != null ? o.beta : 40);
   const g = radians(o && o.gamma != null ? o.gamma : 0);
@@ -405,7 +430,7 @@ function drawPhone() {
   line(t1.x, t1.y, t2.x, t2.y);
 
   noStroke(); fill(DIM); textFont(MONO); textSize(26); textAlign(CENTER, TOP);
-  text(o ? 'attitude from alpha · beta · gamma' : 'attitude (no sensor yet)', cx, cy + 300);
+  text(sim ? 'how the phone would tilt' : o ? 'attitude from alpha · beta · gamma' : 'attitude (no sensor yet)', cx, cy + 300);
   textFont(SANS);
 }
 
