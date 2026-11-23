@@ -222,22 +222,33 @@ function recenter() {
 
 /* ---------- cursor ---------- */
 
-// Same proportions as the home page cursor, scaled ×3 for the 2048 canvas.
+// The home page cursor, drawn at the same on-screen size: k is canvas pixels per
+// CSS pixel, so the crosshair looks the same whatever size the canvas is shown at.
+// Four dashed guides start at the cursor (0.5 wide, dash 4 / gap 4, opening with
+// a half dash so there's always a small solid cross at dead centre), plus four
+// 2-wide bars from 6 to 15.5 out.
 function drawCursor(x, y, labels) {
   const ctx = drawingContext;
+  const shown = ctx.canvas.getBoundingClientRect().width;
+  const k = shown > 0 ? W / shown : 1;
   stroke(ACCENT);
-  strokeWeight(2);
-  ctx.setLineDash([12, 12]);
-  line(0, y, W, y);
-  line(x, 0, x, W);
-  ctx.setLineDash([]);
-
-  strokeWeight(9);
   strokeCap(SQUARE);
-  line(x - 64, y, x - 22, y);
-  line(x + 24, y, x + 64, y);
-  line(x, y - 64, x, y - 22);
-  line(x, y + 24, x, y + 64);
+  strokeWeight(0.5 * k);
+  ctx.setLineDash([4 * k, 4 * k]);
+  ctx.lineDashOffset = 2 * k;
+  line(x, y, 0, y);
+  line(x, y, W, y);
+  line(x, y, x, 0);
+  line(x, y, x, W);
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
+
+  strokeWeight(2 * k);
+  const a = 6 * k, b = 15.5 * k;
+  line(x - a, y, x - b, y);
+  line(x + a, y, x + b, y);
+  line(x, y - a, x, y - b);
+  line(x, y + a, x, y + b);
   strokeCap(ROUND);
 
   if (labels) {
