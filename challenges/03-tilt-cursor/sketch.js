@@ -45,6 +45,7 @@ const MONO = 'JetBrains Mono';
 const SANS = 'sans-serif';
 const W = 2048;
 const M = 64;                // page margin
+const CROSS_SCALE = 0.25;      // crosshair bars, relative to the original size
 
 /* ---------- settings (kept in localStorage) ---------- */
 
@@ -253,12 +254,14 @@ function drawCursor(x, y, labels) {
   line(x, 0, x, W);
   ctx.setLineDash([]);
 
-  strokeWeight(9);
+  // Four bars at 25% of the home page cursor's ×3 size (Max, 2026-11-23).
+  const k = CROSS_SCALE;
+  strokeWeight(Math.max(3, 9 * k));
   strokeCap(SQUARE);
-  line(x - 64, y, x - 22, y);
-  line(x + 24, y, x + 64, y);
-  line(x, y - 64, x, y - 22);
-  line(x, y + 24, x, y + 64);
+  line(x - 64 * k, y, x - 22 * k, y);
+  line(x + 24 * k, y, x + 64 * k, y);
+  line(x, y - 64 * k, x, y - 22 * k);
+  line(x, y + 24 * k, x, y + 64 * k);
   strokeCap(ROUND);
 
   if (labels) {
