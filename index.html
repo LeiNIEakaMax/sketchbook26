@@ -33,13 +33,17 @@
     .phone p a { color: var(--fg); }
     .phone button { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--dim); font: inherit; cursor: pointer; }
     .phone button:hover { color: var(--fg); }
-    /* AutoCAD-style cursor: full-viewport dashed lines, a crosshair, and x/y readouts. Mouse and trackpad only. */
+    /* AutoCAD-style cursor: four dashed guides that start at the pointer and run to the screen edges,
+       four solid crosshair bars, and x/y readouts. Mouse and trackpad only.
+       Guides: 0.5 stroke, dash 4 / gap 4, offset 2 so every guide opens with a half dash at the pointer;
+       together they always draw a small solid cross at dead centre. Bars: 2 stroke, 6 to 15.5 from the pointer,
+       starting where the second dash starts. */
     .cad, .cad * { cursor: none !important; }
     #cad { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: none; }
     .cad #cad.on { display: block; }
     #cad svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-    #cad .guide { stroke: var(--accent); stroke-width: 0.5; stroke-dasharray: 4 4; }
-    #cad .bar { stroke: var(--accent); stroke-width: 3; }
+    #cad .guide { stroke: var(--accent); stroke-width: 0.5; stroke-dasharray: 4 4; stroke-dashoffset: 2; }
+    #cad .bar { stroke: var(--accent); stroke-width: 2; }
     #cad span { position: absolute; font: 8px/11px var(--mono); color: var(--accent); white-space: nowrap; }
     #cad .lx { top: 3px; }
     #cad .ly { right: 4px; }
@@ -55,10 +59,11 @@
   <main id="grid"></main>
   <div id="cad" aria-hidden="true">
     <svg>
-      <line class="guide" id="cad-h"/><line class="guide" id="cad-v"/>
       <g id="cad-x">
-        <line class="bar" x1="-21" y1="0" x2="-7.5" y2="0"/><line class="bar" x1="8" y1="0" x2="21.5" y2="0"/>
-        <line class="bar" x1="0" y1="-21" x2="0" y2="-7.5"/><line class="bar" x1="0" y1="8" x2="0" y2="21.5"/>
+        <line class="guide" id="cad-l" x1="0" y1="0" y2="0"/><line class="guide" id="cad-r" x1="0" y1="0" y2="0"/>
+        <line class="guide" id="cad-u" x1="0" y1="0" x2="0"/><line class="guide" id="cad-d" x1="0" y1="0" x2="0"/>
+        <line class="bar" x1="-6" y1="0" x2="-15.5" y2="0"/><line class="bar" x1="6" y1="0" x2="15.5" y2="0"/>
+        <line class="bar" x1="0" y1="-6" x2="0" y2="-15.5"/><line class="bar" x1="0" y1="6" x2="0" y2="15.5"/>
       </g>
     </svg>
     <span class="lx" id="cad-lx"></span><span class="ly" id="cad-ly"></span>
@@ -91,13 +96,14 @@
     // AutoCAD-style cursor (mouse and trackpad only; touch screens keep their normal behaviour).
     if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
       const cad = document.getElementById('cad');
-      const [h, v, x, lx, ly] = ['cad-h', 'cad-v', 'cad-x', 'cad-lx', 'cad-ly'].map((id) => document.getElementById(id));
+      const [l, r, u, d, x, lx, ly] = ['cad-l', 'cad-r', 'cad-u', 'cad-d', 'cad-x', 'cad-lx', 'cad-ly'].map((id) => document.getElementById(id));
       let px = 0, py = 0, queued = false;
       const draw = () => {
         queued = false;
         const W = innerWidth, H = innerHeight;
-        h.setAttribute('x1', 0); h.setAttribute('x2', W); h.setAttribute('y1', py); h.setAttribute('y2', py);
-        v.setAttribute('y1', 0); v.setAttribute('y2', H); v.setAttribute('x1', px); v.setAttribute('x2', px);
+        // Each guide runs from the pointer (0,0 inside the group) out to its screen edge.
+        l.setAttribute('x2', -px); r.setAttribute('x2', W - px);
+        u.setAttribute('y2', -py); d.setAttribute('y2', H - py);
         x.setAttribute('transform', `translate(${px} ${py})`);
         lx.textContent = `x=${Math.round(px)}`; lx.style.left = px + 4 + 'px';
         ly.textContent = `y=${Math.round(py)}`; ly.style.top = py - 14 + 'px';
