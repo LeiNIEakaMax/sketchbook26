@@ -263,7 +263,18 @@ function minAreaRect(m, w, h) {
   return orderQuad([back(x0, y0), back(x1, y0), back(x1, y1), back(x0, y1)]);
 }
 
-function fitQuad(m, w, h, q0, lam) {
+// how far the corners stick out past the photo's edge (0 = all inside).
+// Once a quad is inside, fitting never lets a corner leave, so corners stay
+// where they can be grabbed (outputs are clamped too).
+const outside = (q, w, h) => q.reduce((t, p) =>
+  t + Math.max(0, -p[0], p[0] - (w - 1)) + Math.max(0, -p[1], p[1] - (h - 1)), 0);
+export function clampQuad(q, w, h) {
+  const out = q.map((p) => [Math.min(w - 1, Math.max(0, p[0])), Math.min(h - 1, Math.max(0, p[1]))]);
+  if (q.score !== undefined) out.score = q.score;
+  return out;
+}
+
+function fitQuad(m, w, h, q0, lam, aspect = 0, keepIn = true) {
   // corner-by-corner hill climb on (mask inside) - lam * (non-mask inside)
   const step0 = 5;
   const P = [];
@@ -278,7 +289,15 @@ function fitQuad(m, w, h, q0, lam) {
   const F = (q) => {
     let f = 0;
     for (let k = 0; k < P.length; k += 3) if (insideConvex(q, P[k], P[k + 1])) f += P[k + 2];
-    return f - bend(q) * fg;
+    let pen = bend(q);
+    if (aspect) {
+      // a known shape (the card): pull the long/short ratio towards it
+      const L = (i) => Math.hypot(q[(i + 1) % 4][0] - q[i][0], q[(i + 1) % 4][1] - q[i][1]);
+      const r = (L(0) + L(2)) / (L(1) + L(3) || 1);
+      const rr = r >= 1 ? r : 1 / r;
+      pen += 2 * Math.max(0, Math.abs(Math.log(rr / aspect)) - 0.12);
+    }
+    return f - pen * fg;
   };
   let f = F(q);
   let step = Math.max(w, h) * 0.08;
@@ -291,7 +310,7 @@ function fitQuad(m, w, h, q0, lam) {
         const qq = q.map((p) => p.slice());
         qq[i][0] += d[0] * step;
         qq[i][1] += d[1] * step;
-        if (!convex(qq)) continue;
+        if (!convex(qq) || (keepIn && outside(q, w, h) === 0 && outside(qq, w, h) > 0)) continue;
         const ff = F(qq);
         if (ff > f) { q = qq; f = ff; improved = true; }
       }
@@ -316,7 +335,7 @@ function gradients(gray, w, h) {
   return { gx, gy };
 }
 
-function snapEdges(q, G, w, h, rounds = 2) {
+function snapEdges(q, G, w, h, rounds = 2, keepIn = true) {
   // each side slides / tilts (both ends move along the side's normal) to the
   // strongest edge nearby; the median-ish score ignores fingers over the edge
   for (let r = 0; r < rounds; r++) {
@@ -364,7 +383,8 @@ function snapEdges(q, G, w, h, rounds = 2) {
       const t = (rx * -d2[1] - -d2[0] * ry) / det;
       nq.push([a1[0] + d1[0] * t, a1[1] + d1[1] * t]);
     }
-    if (!convex(nq) || bend(nq) > bend(q) + 0.15) break;   // snapping went somewhere odd
+    // snapping went somewhere odd, or pushed a corner off the photo
+    if (!convex(nq) || (keepIn && outside(q, w, h) === 0 && outside(nq, w, h) > 0) || bend(nq) > bend(q) + 0.15) break;
     q = nq;
   }
   return q;
@@ -390,6 +410,10 @@ export async function findPanel(work) {
     const i = y * w + x;
     blur[i] = (gray[i - w - 1] + 2 * gray[i - w] + gray[i - w + 1] + 2 * gray[i - 1] + 4 * gray[i] + 2 * gray[i + 1] + gray[i + w - 1] + 2 * gray[i + w] + gray[i + w + 1]) / 16;
   }
+  // the blur leaves its 1px frame at 0; copy the photo there, or the frame
+  // itself reads as a strong edge and a quad can hug the photo's border
+  for (let x = 0; x < w; x++) { blur[x] = gray[x]; blur[(h - 1) * w + x] = gray[(h - 1) * w + x]; }
+  for (let y = 0; y < h; y++) { blur[y * w] = gray[y * w]; blur[y * w + w - 1] = gray[y * w + w - 1]; }
   const G = gradients(blur, w, h);
 
   const src = cv.matFromImageData(new ImageData(new Uint8ClampedArray(rgba), w, h));
@@ -412,8 +436,11 @@ export async function findPanel(work) {
     }
   };
 
-  try {
-    // pass 1: generous centre rectangle, skin = probably background
+  // One full attempt. With useSkin, skin-coloured pixels start as "probably
+  // background" (drops the hand). That helps against a busy shelf but hurts
+  // when the box itself is skin-toned (light pink, kraft), so both run and
+  // the quad whose sides sit on the strongest straight edges wins.
+  const attempt = (useSkin) => {
     const seed = new Uint8Array(w * h);
     const x0 = Math.round(w * 0.1), y0 = Math.round(h * 0.08);
     const x1 = Math.round(w * 0.9), y1 = Math.round(h * 0.92);
@@ -423,11 +450,11 @@ export async function findPanel(work) {
         const R = rgba[i * 4], Gc = rgba[i * 4 + 1], B = rgba[i * 4 + 2];
         const Y = 0.299 * R + 0.587 * Gc + 0.114 * B;
         const Cr = (R - Y) * 0.713 + 128, Cb = (B - Y) * 0.564 + 128;
-        const skin = Cr > 135 && Cr < 175 && Cb > 85 && Cb < 130 && Y > 40;
+        const skin = useSkin && Cr > 135 && Cr < 175 && Cb > 85 && Cb < 130 && Y > 40;
         seed[i] = skin ? 2 : 3;
       }
     }
-    let m = pickComponent(grab(seed, 5), w, h);
+    const m = pickComponent(grab(seed, 5), w, h);
     let q = minAreaRect(m, w, h);
     if (!q) return null;
     q = fitQuad(m, w, h, q, 1.5);
@@ -442,10 +469,51 @@ export async function findPanel(work) {
     const m2 = grab(seed2, 4);
     let q2 = fitQuad(m2, w, h, q, 1.5);
     q2 = snapEdges(q2, G, w, h);
-    const area = Math.abs(signedArea(q2));
-    if (area < w * h * 0.01) q2 = q;
+    if (Math.abs(signedArea(q2)) < w * h * 0.01) q2 = q;
+    return q2;
+  };
 
-    return orderQuad(q2.map((p) => [p[0] / k, p[1] / k]));
+  // how well a quad's sides sit on strong edges (0..1), nudged towards bigger
+  const mags = [];
+  for (let i = 0; i < w * h; i += 7) mags.push(Math.hypot(G.gx[i], G.gy[i]));
+  mags.sort((a, b) => a - b);
+  const T = Math.max(20, mags[Math.floor(mags.length * 0.85)]);
+  const edgeScore = (q) => {
+    let sum = 0;
+    for (let i = 0; i < 4; i++) {
+      const a = q[i], b = q[(i + 1) % 4];
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+      const nx = -dy / L, ny = dx / L;
+      let hit = 0;
+      for (let t = 0; t < 60; t++) {
+        const u = 0.05 + (0.9 * t) / 59;
+        let best = 0;
+        for (let o = -2; o <= 2; o++) {   // allow a pixel or two of slack
+          const x = Math.round(a[0] + dx * u + nx * o), y = Math.round(a[1] + dy * u + ny * o);
+          if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue;
+          const j = y * w + x;
+          best = Math.max(best, Math.abs(G.gx[j] * nx + G.gy[j] * ny));
+        }
+        if (best > T) hit++;
+      }
+      sum += hit / 60;
+    }
+    const area = Math.abs(signedArea(q)) / (w * h);
+    return (sum / 4) * Math.pow(Math.min(1, area), 0.25) * Math.exp(-2 * bend(q));
+  };
+
+  try {
+    let best = null;
+    for (const useSkin of [true, false]) {
+      const q = attempt(useSkin);
+      if (!q || !convex(q)) continue;
+      const sc = edgeScore(q);
+      if (!best || sc > best.sc) best = { q, sc };
+    }
+    if (!best) return null;
+    const out = clampQuad(orderQuad(best.q.map((p) => [p[0] / k, p[1] / k])), work.width, work.height);
+    out.score = best.sc;
+    return out;
   } finally {
     rgb.delete();
   }
@@ -495,4 +563,152 @@ export async function flatten(work, q, outW, outH) {
   } finally {
     src.delete(); dst.delete(); from.delete(); to.delete(); M.delete();
   }
+}
+
+/* ---------- the scale card ---------- */
+
+// A credit-card-size card (ISO/IEC 7810 ID-1): 85.60 × 53.98 mm.
+export const CARD_MM = [85.6, 53.98];
+
+// Finds the cream-coloured card: bright, low-saturation, warm pixels (its
+// black squares and pencil lines are filled in), then the same quad fit and
+// edge snap as the panels. Plain JS, no OpenCV needed.
+export function findCard(work) {
+  const k = Math.min(1, DET_MAX / Math.max(work.width, work.height));
+  const w = Math.round(work.width * k), h = Math.round(work.height * k);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(work, 0, 0, w, h);
+  const px = g.getImageData(0, 0, w, h).data;
+  const m = new Uint8Array(w * h);
+  const gray = new Float32Array(w * h);
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < w * h; i++) hist[Math.max(px[i * 4], px[i * 4 + 1], px[i * 4 + 2])]++;
+  let acc = 0, p98 = 255;
+  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > w * h * 0.02) { p98 = v; break; } }
+  const bright = Math.max(150, 0.75 * p98);
+  for (let i = 0; i < w * h; i++) {
+    const r = px[i * 4], gg = px[i * 4 + 1], b = px[i * 4 + 2];
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+    const sat = mx ? (mx - mn) / mx : 0;
+    gray[i] = 0.299 * r + 0.587 * gg + 0.114 * b;
+    // cream: bright, barely saturated, a little yellow (green above blue);
+    // grey floors aren't bright enough and pinkish whites have green ≈ blue
+    m[i] = mx > bright && sat < 0.3 && gg - b > 8 && r >= gg - 6 ? 1 : 0;
+  }
+  // wide close: the drawn strips and squares are several mm across
+  let mask = fillHoles(close3(m, w, h, 12), w, h);
+  mask = erode(dilate(erode(mask, w, h, 2), w, h, 2), w, h, 0);   // drop specks
+  mask = pickComponent(mask, w, h);
+  // the card is convex: fill its hull so edge squares and a thumb don't bite in
+  mask = hullFill(mask, w, h);
+  let q = minAreaRect(mask, w, h);
+  if (!q) return null;
+  const G = gradients(gray, w, h);
+  // the card may poke past the edge mid-way (corner completion fixes it), so
+  // only its final corners are clamped
+  q = fitQuad(mask, w, h, q, 1.2, CARD_MM[0] / CARD_MM[1], false);
+  q = snapEdges(q, G, w, h, 2, false);
+  // A thumb usually hides one corner. If the shape is off, rebuild each
+  // corner in turn from the other three (as a parallelogram) and keep the
+  // version whose true proportions are closest to a card's.
+  const target = CARD_MM[0] / CARD_MM[1];
+  const off = (qq) => {
+    const a = panelAspect(qq, w, h);
+    return Math.abs(Math.log((a >= 1 ? a : 1 / a) / target));
+  };
+  if (off(q) > 0.12) {
+    let best = q, bo = off(q);
+    for (let i = 0; i < 4; i++) {
+      const a = q[(i + 1) % 4], b = q[(i + 2) % 4], c = q[(i + 3) % 4];
+      const qq = q.map((p) => p.slice());
+      qq[i] = [a[0] + c[0] - b[0], a[1] + c[1] - b[1]];
+      if (!convex(qq)) continue;
+      const o = off(qq);
+      if (o < bo) { best = qq; bo = o; }
+    }
+    q = snapEdges(best, G, w, h, 1, false);
+  }
+  const area = Math.abs(signedArea(q));
+  if (area < w * h * 0.01) return null;
+  // how card-like is it: share of cream inside, and how close to card shape
+  let inside = 0, cream = 0;
+  for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+    if (insideConvex(q, x, y)) { inside++; if (m[y * w + x]) cream++; }
+  }
+  const score = (inside ? cream / inside : 0) * Math.exp(-4 * off(q));
+  const quad = clampQuad(orderQuad(q.map((p) => [p[0] / k, p[1] / k])), work.width, work.height);
+  quad.score = score;
+  return quad;
+}
+
+function hullFill(m, w, h) {
+  const pts = [];
+  for (let y = 0; y < h; y++) {
+    let x0 = -1, x1 = -1;
+    for (let x = 0; x < w; x++) if (m[y * w + x]) { if (x0 < 0) x0 = x; x1 = x; }
+    if (x0 >= 0) { pts.push([x0, y]); if (x1 !== x0) pts.push([x1, y]); }
+  }
+  if (pts.length < 3) return m;
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+  const hull = lo.slice(0, -1).concat(hi.slice(0, -1));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.beginPath();
+  hull.forEach((p, i) => (i ? g.lineTo(p[0] + 0.5, p[1] + 0.5) : g.moveTo(p[0] + 0.5, p[1] + 0.5)));
+  g.closePath();
+  g.fill();
+  const a = g.getImageData(0, 0, w, h).data;
+  const o = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) o[i] = a[i * 4 + 3] > 127 ? 1 : 0;
+  return o;
+}
+
+// Homography from 4 point pairs (src → dst), as a 3×3 row-major array.
+export function homography(src, dst) {
+  const A = [], bv = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); bv.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); bv.push(v);
+  }
+  // Gaussian elimination with partial pivoting
+  const n = 8;
+  for (let col = 0; col < n; col++) {
+    let piv = col;
+    for (let r = col + 1; r < n; r++) if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+    [A[col], A[piv]] = [A[piv], A[col]];
+    [bv[col], bv[piv]] = [bv[piv], bv[col]];
+    const d = A[col][col] || 1e-12;
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const f = A[r][col] / d;
+      if (!f) continue;
+      for (let cc = col; cc < n; cc++) A[r][cc] -= f * A[col][cc];
+      bv[r] -= f * bv[col];
+    }
+  }
+  const hv = bv.map((v, i) => v / (A[i][i] || 1e-12));
+  return [...hv, 1];
+}
+
+export function applyH(H, p) {
+  const x = p[0], y = p[1];
+  const z = H[6] * x + H[7] * y + H[8];
+  return [(H[0] * x + H[1] * y + H[2]) / z, (H[3] * x + H[4] * y + H[5]) / z];
+}
+
+// Length in mm of a line lying in the card's plane.
+export function lineMM(card, line, imgW, imgH) {
+  // whichever pair of sides is really longer (perspective corrected) is 85.6 mm
+  const [a, b] = panelAspect(card, imgW, imgH) >= 1 ? CARD_MM : [CARD_MM[1], CARD_MM[0]];
+  const H = homography(card, [[0, 0], [a, 0], [a, b], [0, b]]);
+  const p = applyH(H, line[0]), q = applyH(H, line[1]);
+  return Math.hypot(q[0] - p[0], q[1] - p[1]);
 }
