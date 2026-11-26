@@ -42,7 +42,11 @@ const dest = join(root, 'challenges', slug);
 const manifestPath = join(root, 'challenges.json');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
-if (existsSync(dest) || manifest.some((c) => c.number === Number(nn))) {
+// A "planned" entry is only a placeholder: building the challenge replaces it
+// and keeps its folder (and thumb.png) if the slug matches.
+const planned = manifest.find((c) => c.number === Number(nn) && c.status === 'planned');
+if (planned) manifest.splice(manifest.indexOf(planned), 1);
+if ((existsSync(dest) && !(planned && planned.slug === slug)) || manifest.some((c) => c.number === Number(nn))) {
   console.error(`Challenge ${nn} already exists.`);
   process.exit(1);
 }

@@ -30,5 +30,13 @@
     "stack": "html",
     "date": "2026-11-22",
     "description": "A pad of sticky notes on every page: peel one off, stick it anywhere, type until it's full."
+  },
+  {
+    "number": 6,
+    "slug": "06-bandana-generator",
+    "title": "Bandana generator",
+    "stack": "p5",
+    "status": "planned",
+    "description": "Design one quadrant of a bandana, pick the motifs and the background, and watch it mirror into the full square."
   }
 ]

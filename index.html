@@ -27,6 +27,8 @@
     .meta time { display: block; color: var(--dim); font: 12px/1.5 var(--mono); margin-bottom: 2px; }
     a.card:hover { border-color: var(--accent); }
     .card.empty { opacity: 0.45; }
+    .card.planned { border-style: dashed; }
+    .card.planned .thumb img { opacity: 0.6; }
     .phone { position: fixed; right: 16px; bottom: 72px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font: 12px/1.5 var(--mono); }
     .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
     .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
@@ -78,7 +80,7 @@
       .then((r) => r.json())
       .then((list) => {
         const byNum = new Map(list.map((c) => [c.number, c]));
-        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL).length;
+        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL && c.status !== 'planned').length;
         document.getElementById('bar').style.width = (done / TOTAL) * 100 + '%';
         const nums = [...new Set([...list.map((c) => c.number), ...Array.from({ length: TOTAL }, (_, i) => i + 1)])].sort((a, b) => a - b);
 
@@ -86,6 +88,11 @@
           const c = byNum.get(n);
           if (!c) return `<div class="card empty"><div class="thumb"><span class="n">${pad(n)}</span></div><div class="meta"><b>${pad(n)}</b><small>to come</small></div></div>`;
           const href = `challenges/${encodeURIComponent(c.slug)}/`;
+          // A planned challenge: an idea with a thumbnail, nothing to open yet.
+          if (c.status === 'planned') return `<div class="card planned">
+            <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
+            <div class="meta"><time>Planned</time><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || '')}</small></div>
+          </div>`;
           return `<a class="card" href="${href}">
             <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
             <div class="meta">${c.date ? `<time datetime="${esc(c.date)}">${fmtDate(c.date)}</time>` : ''}<b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
