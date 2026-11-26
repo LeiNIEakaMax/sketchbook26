@@ -14,6 +14,8 @@
     header { padding: 48px 24px 24px; max-width: 1200px; margin: 0 auto; }
     h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; }
     header p { margin: 8px 0 0; color: var(--dim); }
+    header p.about { margin-top: 16px; max-width: 62ch; font-size: 17px; line-height: 1.55; color: var(--fg); }
+    header p.about + p { font: 12px/1.5 var(--mono); }
     .progress { margin-top: 16px; height: 4px; background: var(--line); }
     .progress span { display: block; height: 100%; background: var(--accent); }
     main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 24px; max-width: 1200px; margin: 0 auto; }
@@ -53,6 +55,7 @@
 <body>
   <header>
     <h1>sketchbook26</h1>
+    <p class="about">Making things for the sake of making things. This is a (almost) daily sketching habit to keep pushing my creativity. I start with an idea, then let the process take me to somewhere new, by experimenting with tools, techniques, effects... just me taking ideas out of my head and turning it into something tangible.</p>
     <p>30 interactive sketches · 2048 × 2048</p>
     <div class="progress"><span id="bar" style="width:0"></span></div>
   </header>
