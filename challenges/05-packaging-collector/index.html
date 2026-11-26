@@ -27,11 +27,15 @@
     <div class="seg" role="tablist" aria-label="View">
       <button role="tab" data-view="panels" aria-selected="true">Panels</button>
       <button role="tab" data-view="box" aria-selected="false">Box</button>
+      <button role="tab" data-view="shelf" aria-selected="false">Shelf</button>
     </div>
+    <div class="right">
+    <button class="btn save" id="saveBox" disabled>Save box</button>
     <label class="ctl">
       <span>Control</span>
       <button class="switch" id="ctlToggle" role="switch" aria-checked="false"><i></i><b>OFF</b></button>
     </label>
+    </div>
   </header>
 
   <main id="stage">
@@ -46,6 +50,9 @@
     <section id="boxView" class="view" hidden>
       <canvas id="boxCanvas" width="2048" height="2048" aria-label="3D box, drag to rotate"></canvas>
       <div class="hint" id="boxHint">Add photos in Panels to build the box</div>
+    </section>
+    <section id="shelfView" class="view shelf-view" hidden>
+      <div class="shelf" id="shelf"></div>
     </section>
   </main>
 

@@ -107,5 +107,19 @@ export function createBoxView(canvas) {
     start() { if (!running) { running = true; loop(); } },
     stop() { running = false; },
     render() { controls.update(); renderer.render(scene, camera); },
+    // A square picture from the default angle, for the shelf.
+    snapshot(size = 480) {
+      const pos = camera.position.clone(), tgt = controls.target.clone();
+      resetView();
+      renderer.render(scene, camera);
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      c.getContext('2d').drawImage(renderer.domElement, 0, 0, size, size);
+      camera.position.copy(pos);
+      controls.target.copy(tgt);
+      controls.update();
+      renderer.render(scene, camera);
+      return c;
+    },
   };
 }

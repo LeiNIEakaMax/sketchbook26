@@ -8,10 +8,14 @@
 // Every panel's measured width / height (perspective corrected) feeds a small
 // least-squares fit for W, H and D.
 //
+// Save box keeps the photos, corners and panels in this browser (IndexedDB);
+// the Shelf view lists every saved box.
+//
 // Keys: S saves a PNG of the box view, F fullscreen.
 
 import { decodePhoto, findPanel, flatten, panelAspect, orderQuad, defaultQuad, loadCV } from './vision.js';
 import { createBoxView, SIZE } from './box.js';
+import { listBoxes, getBox, putBox, deleteBox, toBlob, toCanvas } from './store.js';
 
 const FACES = ['front', 'right', 'back', 'left', 'top', 'bottom'];
 const LABEL = { front: 'Front', right: 'Right', back: 'Back', left: 'Left', top: 'Top', bottom: 'Bottom' };
@@ -26,9 +30,10 @@ const $ = (id) => document.getElementById(id);
 const faces = Object.fromEntries(FACES.map((f) => [f, null]));
 let S = loadSettings();
 let dims = null;
+let currentId = null;   // the shelf box being edited, if any
 
 function loadSettings() {
-  const d = { view: 'panels', panel: false, spin: false, realH: '' };
+  const d = { view: 'panels', panel: false, spin: false, realH: '', openId: null };
   try { return { ...d, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) { return d; }
 }
 function persist() {
@@ -45,7 +50,9 @@ function setView(v) {
   document.querySelectorAll('.top .seg button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
   $('panelsView').hidden = v !== 'panels';
   $('boxView').hidden = v !== 'box';
+  $('shelfView').hidden = v !== 'shelf';
   if (v === 'box') box.start(); else box.stop();
+  if (v === 'shelf') renderShelf();
 }
 document.querySelectorAll('.top .seg button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -136,10 +143,12 @@ function pickOne(f) { pickTarget = f; $('fileOne').value = ''; $('fileOne').clic
 $('fileOne').addEventListener('change', () => { const file = $('fileOne').files[0]; if (file && pickTarget) addPhoto(pickTarget, file); });
 for (const id of ['addAll', 'addAllTop']) $(id).addEventListener('click', () => { $('fileMany').value = ''; $('fileMany').click(); });
 $('fileMany').addEventListener('change', () => addMany([...$('fileMany').files]));
-$('clearAll').addEventListener('click', () => {
+function clearFaces() {
   for (const f of FACES) { faces[f] = null; renderSlot(f); box.setFace(f, null); }
+  setCurrent(null);
   refit();
-});
+}
+$('clearAll').addEventListener('click', clearFaces);
 
 // The whole page is a drop target for a batch of photos.
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -282,6 +291,8 @@ function refit() {
     box.setDims(1, 1, 1);
   }
   $('boxHint').hidden = have.length > 0;
+  document.querySelector('.intro').hidden = FACES.some((f) => faces[f]);
+  $('saveBox').disabled = have.length === 0 || FACES.some((f) => faces[f] && faces[f].busy);
   showDims();
 }
 
@@ -513,6 +524,167 @@ $('edRemove').addEventListener('click', () => {
   refit();
 });
 
+/* ---------- saving: the shelf ---------- */
+
+function setCurrent(id) {
+  currentId = id;
+  S.openId = id;
+  persist();
+}
+
+let saving = false;
+async function saveBox() {
+  const have = FACES.filter((f) => faces[f] && faces[f].flat && !faces[f].busy);
+  if (!have.length || saving) return;
+  saving = true;
+  $('saveBox').disabled = true;
+  $('saveBox').textContent = 'Saving…';
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    const old = currentId ? await getBox(currentId) : null;
+    const rec = {
+      id: currentId || `box-${Date.now().toString(36)}`,
+      name: old ? old.name : await nextName(),
+      created: old ? old.created : Date.now(),
+      updated: Date.now(),
+      dims, realH: S.realH,
+      faces: {},
+    };
+    for (const f of have) {
+      const s = faces[f];
+      rec.faces[f] = {
+        photo: await toBlob(s.work, 'image/jpeg', 0.88),
+        flat: await toBlob(s.flat, 'image/jpeg', 0.9),
+        quad: s.quad, rot: s.rot, auto: s.auto, manual: s.manual, aspect: s.aspect,
+      };
+    }
+    rec.thumb = await toBlob(box.snapshot(480), 'image/jpeg', 0.85);
+    await putBox(rec);
+    setCurrent(rec.id);
+    status(`Saved “${rec.name}” to the shelf`);
+  } catch (e) {
+    console.error(e);
+    status("Couldn't save: this browser may be out of storage space. Try deleting a box from the shelf.");
+  } finally {
+    saving = false;
+    $('saveBox').textContent = 'Save box';
+    refit();
+  }
+}
+$('saveBox').addEventListener('click', saveBox);
+
+async function nextName() {
+  const all = await listBoxes();
+  let n = all.length + 1;
+  while (all.some((b) => b.name === `Box ${n}`)) n++;
+  return `Box ${n}`;
+}
+
+async function openBox(id) {
+  const rec = await getBox(id);
+  if (!rec) { status('That box is no longer on the shelf'); setCurrent(null); return; }
+  for (const f of FACES) {
+    const r = rec.faces[f];
+    if (!r) { faces[f] = null; box.setFace(f, null); renderSlot(f); continue; }
+    const [work, flat] = await Promise.all([toCanvas(r.photo), toCanvas(r.flat)]);
+    faces[f] = { work, flat, quad: r.quad, rot: r.rot, auto: r.auto, manual: r.manual, aspect: r.aspect, found: true };
+    orient(f);
+    renderSlot(f);
+  }
+  if (rec.realH != null) { S.realH = rec.realH; $('realH').value = rec.realH; persist(); }
+  setCurrent(rec.id);
+  refit();
+}
+
+const thumbURLs = [];
+async function renderShelf() {
+  const shelf = $('shelf');
+  let all = [];
+  try { all = await listBoxes(); } catch (e) { console.error(e); }
+  thumbURLs.splice(0).forEach((u) => URL.revokeObjectURL(u));
+  shelf.replaceChildren();
+
+  const add = document.createElement('button');
+  add.className = 'card new';
+  add.innerHTML = '<span><span class="plus">+</span>New box</span>';
+  add.addEventListener('click', () => { clearFaces(); setView('panels'); });
+  shelf.appendChild(add);
+
+  if (!all.length) {
+    const p = document.createElement('p');
+    p.className = 'shelf-empty';
+    p.textContent = 'No boxes yet. Build one in Panels, then press Save box.';
+    shelf.appendChild(p);
+  }
+  for (const rec of all) {
+    const card = document.createElement('div');
+    card.className = 'card' + (rec.id === currentId ? ' current' : '');
+    const pic = document.createElement('button');
+    pic.className = 'pic';
+    pic.setAttribute('aria-label', `Open ${rec.name}`);
+    if (rec.thumb) {
+      const img = document.createElement('img');
+      const u = URL.createObjectURL(rec.thumb);
+      thumbURLs.push(u);
+      img.src = u; img.alt = '';
+      pic.appendChild(img);
+    }
+    pic.addEventListener('click', async () => { await openBox(rec.id); setView('box'); });
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('input');
+    name.value = rec.name;
+    name.setAttribute('aria-label', 'Box name');
+    name.addEventListener('change', async () => {
+      const r = await getBox(rec.id);
+      if (!r) return;
+      r.name = name.value.trim() || r.name;
+      name.value = r.name;
+      await putBox(r);
+    });
+    name.addEventListener('keydown', (e) => { if (e.key === 'Enter') name.blur(); });
+    const sub = document.createElement('div');
+    sub.className = 'sub';
+    const d = rec.dims;
+    const H = parseFloat(rec.realH);
+    sub.textContent = d
+      ? (H > 0 ? `${(d.w * H).toFixed(1)} × ${H.toFixed(1)} × ${(d.d * H).toFixed(1)} cm` : `${d.w.toFixed(2)} × 1 × ${d.d.toFixed(2)}`)
+      : '';
+    const date = document.createElement('div');
+    date.className = 'sub';
+    date.textContent = new Date(rec.updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+    const acts = document.createElement('div');
+    acts.className = 'acts';
+    const open = document.createElement('button');
+    open.className = 'btn';
+    open.textContent = 'Open';
+    open.addEventListener('click', async () => { await openBox(rec.id); setView('panels'); });
+    const del = document.createElement('button');
+    del.className = 'btn';
+    del.textContent = 'Delete';
+    let armed = 0;
+    del.addEventListener('click', async () => {
+      if (!armed) {
+        del.textContent = 'Tap to delete';
+        del.classList.add('warn');
+        armed = setTimeout(() => { armed = 0; del.textContent = 'Delete'; del.classList.remove('warn'); }, 3000);
+        return;
+      }
+      clearTimeout(armed);
+      await deleteBox(rec.id);
+      if (rec.id === currentId) setCurrent(null);
+      status(`Deleted “${rec.name}”`);
+      renderShelf();
+    });
+    acts.append(open, del);
+    meta.append(name, sub, date, acts);
+    card.append(pic, meta);
+    shelf.appendChild(card);
+  }
+}
+
 /* ---------- keys ---------- */
 
 document.addEventListener('keydown', (e) => {
@@ -538,6 +710,8 @@ setSwitch($('spinToggle'), S.spin);
 box.setSpin(S.spin);
 setView(S.view);
 refit();
+// reopen the box that was open last time
+if (S.openId) openBox(S.openId).catch((e) => { console.warn(e); setCurrent(null); });
 
 // for testing in the console
-window.packaging = { faces, refit, SIZE };
+window.packaging = { faces, refit, SIZE, saveBox, openBox, listBoxes };
