@@ -17,7 +17,7 @@
 //
 // Keys: S saves a PNG of the box view, F fullscreen.
 
-import { decodePhoto, findPanel, findCard, lineMM, flatten, panelAspect, orderQuad, defaultQuad, loadCV, CARD_MM } from './vision.js';
+import { decodePhoto, findPanel, findCard, lineMM, flatten, panelAspect, orderQuad, defaultQuad, clampQuad, loadCV, CARD_MM } from './vision.js';
 import { buildDieline } from './dieline.js';
 import { createBoxView, SIZE } from './box.js';
 import { listBoxes, getBox, putBox, deleteBox, toBlob, toCanvas } from './store.js';
@@ -499,7 +499,8 @@ function openEditor(f) {
   const isScale = f === 'scale';
   $('editor').classList.toggle('scale-mode', isScale);
   const s = isScale ? scale : faces[f];
-  edQuad = (isScale ? s.card : s.quad).map((p) => p.slice());
+  // older saved boxes may have a corner past the photo's edge: pull it in
+  edQuad = clampQuad(isScale ? s.card : s.quad, s.work.width, s.work.height);
   edLine = isScale ? s.line.map((p) => p.slice()) : null;
   if (isScale) { updateDimSeg(); showMeasure(); }
   const c = $('edCanvas');

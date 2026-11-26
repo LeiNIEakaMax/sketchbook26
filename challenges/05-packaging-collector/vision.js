@@ -263,7 +263,18 @@ function minAreaRect(m, w, h) {
   return orderQuad([back(x0, y0), back(x1, y0), back(x1, y1), back(x0, y1)]);
 }
 
-function fitQuad(m, w, h, q0, lam, aspect = 0) {
+// how far the corners stick out past the photo's edge (0 = all inside).
+// Once a quad is inside, fitting never lets a corner leave, so corners stay
+// where they can be grabbed (outputs are clamped too).
+const outside = (q, w, h) => q.reduce((t, p) =>
+  t + Math.max(0, -p[0], p[0] - (w - 1)) + Math.max(0, -p[1], p[1] - (h - 1)), 0);
+export function clampQuad(q, w, h) {
+  const out = q.map((p) => [Math.min(w - 1, Math.max(0, p[0])), Math.min(h - 1, Math.max(0, p[1]))]);
+  if (q.score !== undefined) out.score = q.score;
+  return out;
+}
+
+function fitQuad(m, w, h, q0, lam, aspect = 0, keepIn = true) {
   // corner-by-corner hill climb on (mask inside) - lam * (non-mask inside)
   const step0 = 5;
   const P = [];
@@ -299,7 +310,7 @@ function fitQuad(m, w, h, q0, lam, aspect = 0) {
         const qq = q.map((p) => p.slice());
         qq[i][0] += d[0] * step;
         qq[i][1] += d[1] * step;
-        if (!convex(qq)) continue;
+        if (!convex(qq) || (keepIn && outside(q, w, h) === 0 && outside(qq, w, h) > 0)) continue;
         const ff = F(qq);
         if (ff > f) { q = qq; f = ff; improved = true; }
       }
@@ -324,7 +335,7 @@ function gradients(gray, w, h) {
   return { gx, gy };
 }
 
-function snapEdges(q, G, w, h, rounds = 2) {
+function snapEdges(q, G, w, h, rounds = 2, keepIn = true) {
   // each side slides / tilts (both ends move along the side's normal) to the
   // strongest edge nearby; the median-ish score ignores fingers over the edge
   for (let r = 0; r < rounds; r++) {
@@ -372,7 +383,8 @@ function snapEdges(q, G, w, h, rounds = 2) {
       const t = (rx * -d2[1] - -d2[0] * ry) / det;
       nq.push([a1[0] + d1[0] * t, a1[1] + d1[1] * t]);
     }
-    if (!convex(nq) || bend(nq) > bend(q) + 0.15) break;   // snapping went somewhere odd
+    // snapping went somewhere odd, or pushed a corner off the photo
+    if (!convex(nq) || (keepIn && outside(q, w, h) === 0 && outside(nq, w, h) > 0) || bend(nq) > bend(q) + 0.15) break;
     q = nq;
   }
   return q;
@@ -398,6 +410,10 @@ export async function findPanel(work) {
     const i = y * w + x;
     blur[i] = (gray[i - w - 1] + 2 * gray[i - w] + gray[i - w + 1] + 2 * gray[i - 1] + 4 * gray[i] + 2 * gray[i + 1] + gray[i + w - 1] + 2 * gray[i + w] + gray[i + w + 1]) / 16;
   }
+  // the blur leaves its 1px frame at 0; copy the photo there, or the frame
+  // itself reads as a strong edge and a quad can hug the photo's border
+  for (let x = 0; x < w; x++) { blur[x] = gray[x]; blur[(h - 1) * w + x] = gray[(h - 1) * w + x]; }
+  for (let y = 0; y < h; y++) { blur[y * w] = gray[y * w]; blur[y * w + w - 1] = gray[y * w + w - 1]; }
   const G = gradients(blur, w, h);
 
   const src = cv.matFromImageData(new ImageData(new Uint8ClampedArray(rgba), w, h));
@@ -495,7 +511,7 @@ export async function findPanel(work) {
       if (!best || sc > best.sc) best = { q, sc };
     }
     if (!best) return null;
-    const out = orderQuad(best.q.map((p) => [p[0] / k, p[1] / k]));
+    const out = clampQuad(orderQuad(best.q.map((p) => [p[0] / k, p[1] / k])), work.width, work.height);
     out.score = best.sc;
     return out;
   } finally {
@@ -590,8 +606,10 @@ export function findCard(work) {
   let q = minAreaRect(mask, w, h);
   if (!q) return null;
   const G = gradients(gray, w, h);
-  q = fitQuad(mask, w, h, q, 1.2, CARD_MM[0] / CARD_MM[1]);
-  q = snapEdges(q, G, w, h);
+  // the card may poke past the edge mid-way (corner completion fixes it), so
+  // only its final corners are clamped
+  q = fitQuad(mask, w, h, q, 1.2, CARD_MM[0] / CARD_MM[1], false);
+  q = snapEdges(q, G, w, h, 2, false);
   // A thumb usually hides one corner. If the shape is off, rebuild each
   // corner in turn from the other three (as a parallelogram) and keep the
   // version whose true proportions are closest to a card's.
@@ -610,7 +628,7 @@ export function findCard(work) {
       const o = off(qq);
       if (o < bo) { best = qq; bo = o; }
     }
-    q = snapEdges(best, G, w, h, 1);
+    q = snapEdges(best, G, w, h, 1, false);
   }
   const area = Math.abs(signedArea(q));
   if (area < w * h * 0.01) return null;
@@ -620,7 +638,7 @@ export function findCard(work) {
     if (insideConvex(q, x, y)) { inside++; if (m[y * w + x]) cream++; }
   }
   const score = (inside ? cream / inside : 0) * Math.exp(-4 * off(q));
-  const quad = orderQuad(q.map((p) => [p[0] / k, p[1] / k]));
+  const quad = clampQuad(orderQuad(q.map((p) => [p[0] / k, p[1] / k])), work.width, work.height);
   quad.score = score;
   return quad;
 }
