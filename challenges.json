@@ -30,5 +30,13 @@
     "stack": "html",
     "date": "2026-11-22",
     "description": "A pad of sticky notes on every page: peel one off, stick it anywhere, type until it's full."
+  },
+  {
+    "number": 5,
+    "slug": "05-packaging-collector",
+    "title": "Packaging collector",
+    "stack": "three.js + OpenCV.js",
+    "date": "2026-11-25",
+    "description": "Photograph the six sides of a box: each panel is found, flattened and folded back into a 3D box you can turn around."
   }
 ]
