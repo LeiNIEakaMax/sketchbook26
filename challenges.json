@@ -38,5 +38,13 @@
     "stack": "three.js + OpenCV.js",
     "date": "2026-11-25",
     "description": "Photograph the six sides of a box: each panel is found, flattened and folded back into a 3D box you can turn around."
+  },
+  {
+    "number": 6,
+    "slug": "06-bandana-generator",
+    "title": "Bandana generator",
+    "stack": "p5",
+    "status": "planned",
+    "description": "Design one quadrant of a bandana, pick the motifs and the background, and watch it mirror into the full square."
   }
 ]

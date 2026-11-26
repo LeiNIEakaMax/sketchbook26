@@ -14,6 +14,8 @@
     header { padding: 48px 24px 24px; max-width: 1200px; margin: 0 auto; }
     h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; }
     header p { margin: 8px 0 0; color: var(--dim); }
+    header p.about { margin-top: 16px; max-width: 62ch; font-size: 17px; line-height: 1.55; color: var(--fg); }
+    header p.about + p { font: 12px/1.5 var(--mono); }
     .progress { margin-top: 16px; height: 4px; background: var(--line); }
     .progress span { display: block; height: 100%; background: var(--accent); }
     main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 24px; max-width: 1200px; margin: 0 auto; }
@@ -27,6 +29,8 @@
     .meta time { display: block; color: var(--dim); font: 12px/1.5 var(--mono); margin-bottom: 2px; }
     a.card:hover { border-color: var(--accent); }
     .card.empty { opacity: 0.45; }
+    .card.planned { border-style: dashed; }
+    .card.planned .thumb img { opacity: 0.6; }
     .phone { position: fixed; right: 16px; bottom: 72px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font: 12px/1.5 var(--mono); }
     .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
     .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
@@ -53,6 +57,7 @@
 <body>
   <header>
     <h1>sketchbook26</h1>
+    <p class="about">Making things for the sake of making things. This is a (almost) daily sketching habit to keep pushing my creativity. I start with an idea, then let the process take me to somewhere new, by experimenting with tools, techniques, effects... just me taking ideas out of my head and turning it into something tangible.</p>
     <p>30 interactive sketches · 2048 × 2048</p>
     <div class="progress"><span id="bar" style="width:0"></span></div>
   </header>
@@ -78,7 +83,7 @@
       .then((r) => r.json())
       .then((list) => {
         const byNum = new Map(list.map((c) => [c.number, c]));
-        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL).length;
+        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL && c.status !== 'planned').length;
         document.getElementById('bar').style.width = (done / TOTAL) * 100 + '%';
         const nums = [...new Set([...list.map((c) => c.number), ...Array.from({ length: TOTAL }, (_, i) => i + 1)])].sort((a, b) => a - b);
 
@@ -86,6 +91,11 @@
           const c = byNum.get(n);
           if (!c) return `<div class="card empty"><div class="thumb"><span class="n">${pad(n)}</span></div><div class="meta"><b>${pad(n)}</b><small>to come</small></div></div>`;
           const href = `challenges/${encodeURIComponent(c.slug)}/`;
+          // A planned challenge: an idea with a thumbnail, nothing to open yet.
+          if (c.status === 'planned') return `<div class="card planned">
+            <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
+            <div class="meta"><time>Planned</time><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || '')}</small></div>
+          </div>`;
           return `<a class="card" href="${href}">
             <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
             <div class="meta">${c.date ? `<time datetime="${esc(c.date)}">${fmtDate(c.date)}</time>` : ''}<b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
