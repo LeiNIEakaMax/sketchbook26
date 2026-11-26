@@ -27,6 +27,7 @@
     <div class="seg" role="tablist" aria-label="View">
       <button role="tab" data-view="panels" aria-selected="true">Panels</button>
       <button role="tab" data-view="box" aria-selected="false">Box</button>
+      <button role="tab" data-view="dieline" aria-selected="false">Dieline</button>
       <button role="tab" data-view="shelf" aria-selected="false">Shelf</button>
     </div>
     <div class="right">
@@ -50,6 +51,18 @@
     <section id="boxView" class="view" hidden>
       <canvas id="boxCanvas" width="2048" height="2048" aria-label="3D box, drag to rotate"></canvas>
       <div class="hint" id="boxHint">Add photos in Panels to build the box</div>
+    </section>
+    <section id="dieView" class="view die-view" hidden>
+      <div class="die-bar">
+        <label class="field toggle-field">
+          <span>ARTWORK</span>
+          <button class="switch" id="dieArt" role="switch" aria-checked="true"><i></i><b>ON</b></button>
+        </label>
+        <button class="btn" id="dieSvg">Download SVG</button>
+        <button class="btn" id="diePrint">Print</button>
+      </div>
+      <div class="dieline" id="dieline"></div>
+      <div class="die-note" id="dieNote"></div>
     </section>
     <section id="shelfView" class="view shelf-view" hidden>
       <div class="shelf" id="shelf"></div>
@@ -85,6 +98,7 @@
   <div class="editor" id="editor" hidden>
     <div class="ed-top">
       <div class="seg small" id="faceSeg" aria-label="Face"></div>
+      <div class="ed-scale-title">SCALE CARD</div>
       <button class="btn active" id="edDone">Done</button>
     </div>
     <div class="ed-body">
@@ -94,15 +108,21 @@
         <canvas id="loupe" width="180" height="180" hidden></canvas>
       </div>
       <div class="ed-side">
-        <div class="ed-label">FLATTENED</div>
-        <div class="ed-preview" id="edPreview"></div>
+        <div class="ed-label face-only">FLATTENED</div>
+        <div class="ed-preview face-only" id="edPreview"></div>
+        <div class="scale-only">
+          <div class="ed-label">THE WHITE LINE RUNS ALONG THE BOX'S</div>
+          <div class="seg small" id="dimSeg" aria-label="Which side the line measures"></div>
+          <p class="measure" id="measure"></p>
+        </div>
         <div class="ed-tools">
-          <button class="btn" id="edRotate">Rotate 90°</button>
+          <button class="btn face-only" id="edRotate">Rotate 90°</button>
           <button class="btn" id="edDetect">Find panel again</button>
           <button class="btn" id="edReplace">Replace photo</button>
           <button class="btn" id="edRemove">Remove photo</button>
         </div>
-        <p class="ed-help">Drag the four corners onto the edges of the box face.</p>
+        <p class="ed-help face-only">Drag the four corners onto the edges of the box face.</p>
+        <p class="ed-help scale-only">Green corners: the card (85.6 × 54 mm). Lay the card flat on a box face, drag the white line along an edge of that same face, then pick which side of the box that edge is.</p>
       </div>
     </div>
   </div>

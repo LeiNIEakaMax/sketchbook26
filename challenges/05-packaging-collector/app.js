@@ -8,12 +8,17 @@
 // Every panel's measured width / height (perspective corrected) feeds a small
 // least-squares fit for W, H and D.
 //
+// A scale photo (a credit-card-size card laid on the box, plus a line you
+// drag along one box edge) turns the proportions into millimetres, and the
+// Dieline view unfolds the box into a printable tuck-end net.
+//
 // Save box keeps the photos, corners and panels in this browser (IndexedDB);
 // the Shelf view lists every saved box.
 //
 // Keys: S saves a PNG of the box view, F fullscreen.
 
-import { decodePhoto, findPanel, flatten, panelAspect, orderQuad, defaultQuad, loadCV } from './vision.js';
+import { decodePhoto, findPanel, findCard, lineMM, flatten, panelAspect, orderQuad, defaultQuad, loadCV, CARD_MM } from './vision.js';
+import { buildDieline } from './dieline.js';
 import { createBoxView, SIZE } from './box.js';
 import { listBoxes, getBox, putBox, deleteBox, toBlob, toCanvas } from './store.js';
 
@@ -31,6 +36,12 @@ const faces = Object.fromEntries(FACES.map((f) => [f, null]));
 let S = loadSettings();
 let dims = null;
 let currentId = null;   // the shelf box being edited, if any
+// scale = { work, card (quad), line ([[x,y],[x,y]]), dim, mm } or null.
+// dim names the box side by size, which doesn't depend on how the box was
+// turned: 'long' | 'mid' | 'short'.
+let scale = null;
+const DIM_LABEL = { long: 'Longest', mid: 'Middle', short: 'Shortest' };
+const sideBySize = (d) => { const v = [d.w, d.h, d.d].sort((a, b) => b - a); return { long: v[0], mid: v[1], short: v[2] }; };
 
 function loadSettings() {
   const d = { view: 'panels', panel: false, spin: false, realH: '', openId: null };
@@ -51,8 +62,10 @@ function setView(v) {
   $('panelsView').hidden = v !== 'panels';
   $('boxView').hidden = v !== 'box';
   $('shelfView').hidden = v !== 'shelf';
+  $('dieView').hidden = v !== 'dieline';
   if (v === 'box') box.start(); else box.stop();
   if (v === 'shelf') renderShelf();
+  if (v === 'dieline') renderDieline();
 }
 document.querySelectorAll('.top .seg button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -136,15 +149,51 @@ function renderSlot(f) {
 }
 FACES.forEach(renderSlot);
 
+// the scale photo gets its own tile, under the net
+const scaleSlot = document.createElement('button');
+scaleSlot.className = 'slot scale';
+scaleSlot.style.gridArea = 'scale';
+scaleSlot.addEventListener('click', () => (scale && scale.work ? openEditor('scale') : pickOne('scale')));
+net.appendChild(scaleSlot);
+
+function renderScaleSlot() {
+  const b = scaleSlot;
+  b.replaceChildren();
+  b.classList.toggle('filled', !!(scale && scale.work && !scale.busy));
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = 'SCALE CARD';
+  b.appendChild(tag);
+  const m = document.createElement('span');
+  m.className = 'msg';
+  if (scale && scale.busy) m.textContent = scale.busy;
+  else if (scale && scale.work) {
+    m.innerHTML = scale.mm
+      ? `<b class="mm">${scale.mm.toFixed(1)} mm</b><br>${DIM_LABEL[scale.dim].toLowerCase()} side of the box<br><span class="dim">tap to adjust</span>`
+      : 'Card found. Tap to draw the measuring line';
+  } else {
+    m.innerHTML = '<span class="plus">+</span>Card photo<br><span class="dim">credit-card size, laid on the box</span>';
+  }
+  b.appendChild(m);
+  b.setAttribute('aria-label', scale ? 'Scale card photo, tap to adjust' : 'Add a scale card photo');
+}
+renderScaleSlot();
+
 /* ---------- adding photos ---------- */
 
 let pickTarget = null;
 function pickOne(f) { pickTarget = f; $('fileOne').value = ''; $('fileOne').click(); }
-$('fileOne').addEventListener('change', () => { const file = $('fileOne').files[0]; if (file && pickTarget) addPhoto(pickTarget, file); });
+$('fileOne').addEventListener('change', () => {
+  const file = $('fileOne').files[0];
+  if (!file || !pickTarget) return;
+  if (pickTarget === 'scale') addScalePhoto(file); else addPhoto(pickTarget, file);
+});
 for (const id of ['addAll', 'addAllTop']) $(id).addEventListener('click', () => { $('fileMany').value = ''; $('fileMany').click(); });
 $('fileMany').addEventListener('change', () => addMany([...$('fileMany').files]));
 function clearFaces() {
   for (const f of FACES) { faces[f] = null; renderSlot(f); box.setFace(f, null); }
+  scale = null;
+  renderScaleSlot();
   setCurrent(null);
   refit();
 }
@@ -162,10 +211,123 @@ document.addEventListener('drop', (e) => {
 function addMany(files) {
   files = files.filter((f) => /^image\//.test(f.type) || /\.(hei[cf]|jpe?g|png|webp)$/i.test(f.name));
   files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (files.length > 6) { addWithCard(files.slice(0, 7)); return; }
   // fill empty slots in order: front, right, back, left, top, bottom
   let empties = FACES.filter((f) => !faces[f]);
   if (empties.length < files.length) empties = FACES.slice();
   files.slice(0, 6).forEach((file, i) => addPhoto(empties[i], file));
+}
+
+// Seven photos: one of them shows the scale card. Open them all, find the
+// panel and the card in each, and give the scale tile the photo where a
+// card-like shape sits apart from the box face (a white box face can look
+// like the card, but then the two outlines coincide). The other six go to
+// the faces in order.
+function addWithCard(files) {
+  for (const f of FACES) { faces[f] = { busy: 'Sorting photos…', rot: 0, auto: 0, manual: false }; renderSlot(f); }
+  scale = { busy: 'Looking for the card…' };
+  renderScaleSlot();
+  queue = queue.then(async () => {
+    const decoded = [];
+    for (const file of files) decoded.push(await decodePhoto(file));
+    if (!(window.cv && window.cv.Mat)) status('Loading the vision library, about 10 MB, only the first time', true);
+    await loadCV();
+    status('Finding the card and the panels…', true);
+    const found = [];
+    for (const work of decoded) {
+      await new Promise((r) => setTimeout(r, 20));
+      let panel = null;
+      try { panel = await findPanel(work); } catch (e) { console.warn(e); }
+      const card = findCard(work);
+      const sc = card ? card.score * (1 - overlap(card, panel, work)) : 0;
+      found.push({ work, panel, sc });
+    }
+    status('');
+    let best = 0;
+    found.forEach((v, i) => { if (v.sc > found[best].sc) best = i; });
+    setScalePhoto(found[best].work);
+    found.filter((_, i) => i !== best).forEach(({ work, panel }, i) => {
+      const f = FACES[i];
+      const job = { busy: 'Flattening…', rot: 0, auto: 0, manual: false };
+      faces[f] = job;
+      renderSlot(f);
+      queue = queue.then(() => processPhoto(f, null, job, work, panel)).catch((err) => {
+        console.error(err);
+        if (faces[f] === job) { job.busy = null; job.error = err.message || 'Something went wrong'; renderSlot(f); }
+      });
+    });
+  }).catch((err) => {
+    console.error(err);
+    status(err.message || "Couldn't open those photos");
+    for (const f of FACES) if (faces[f] && faces[f].busy) { faces[f] = null; renderSlot(f); }
+    scale = null; renderScaleSlot();
+  });
+}
+
+// how much of the card outline is the panel outline (0 = apart, 1 = same)
+function overlap(a, b, work) {
+  if (!a || !b) return 0;
+  const inside = (q, x, y) => {
+    for (let i = 0; i < 4; i++) {
+      const p = q[i], n = q[(i + 1) % 4];
+      if ((n[0] - p[0]) * (y - p[1]) - (n[1] - p[1]) * (x - p[0]) < 0) return false;
+    }
+    return true;
+  };
+  let ia = 0, both = 0, any = 0;
+  const step = Math.max(work.width, work.height) / 80;
+  for (let y = 0; y < work.height; y += step) for (let x = 0; x < work.width; x += step) {
+    const A = inside(a, x, y), B = inside(b, x, y);
+    if (A) ia++;
+    if (A && B) both++;
+    if (A || B) any++;
+  }
+  return any ? both / any : 0;
+}
+
+function addScalePhoto(file) {
+  scale = { busy: 'Opening photo…' };
+  renderScaleSlot();
+  queue = queue.then(async () => setScalePhoto(await decodePhoto(file))).catch((err) => {
+    console.error(err);
+    scale = null;
+    renderScaleSlot();
+    status(err.message || "Couldn't open that photo");
+  });
+}
+
+function setScalePhoto(work) {
+  const card = findCard(work) || defaultQuad(work.width, work.height);
+  // a first measuring line beside the card, for you to drag onto a box edge
+  const cx = (card[1][0] + card[2][0]) / 2, cy = (card[1][1] + card[2][1]) / 2;
+  const len = Math.hypot(card[2][0] - card[1][0], card[2][1] - card[1][1]);
+  const ux = (card[2][0] - card[1][0]) / (len || 1), uy = (card[2][1] - card[1][1]) / (len || 1);
+  const off = 0.25 * len;
+  const clampP = (p) => [Math.min(work.width - 1, Math.max(0, p[0])), Math.min(work.height - 1, Math.max(0, p[1]))];
+  const line = [
+    clampP([cx + uy * off - ux * len * 0.4, cy - ux * off - uy * len * 0.4]),
+    clampP([cx + uy * off + ux * len * 0.4, cy - ux * off + uy * len * 0.4]),
+  ];
+  scale = { work, card: card.map((p) => p.slice()), line, dim: 'long', mm: 0, placed: false };
+  measure();
+  renderScaleSlot();
+}
+
+// mm along the line, and from it the real height that the rest of the page uses
+function measure() {
+  if (!scale || !scale.work) return;
+  scale.mm = lineMM(scale.card, scale.line, scale.work.width, scale.work.height);
+  applyScale();
+}
+function applyScale() {
+  if (!scale || !scale.mm || !scale.placed || !dims) return;
+  const unit = sideBySize(dims)[scale.dim];   // that side, in units where H = 1
+  if (!(unit > 0)) return;
+  const hcm = scale.mm / unit / 10;
+  S.realH = hcm.toFixed(1);
+  $('realH').value = S.realH;
+  persist();
+  showDims();
 }
 
 // One photo at a time through decode → find → flatten, so phones don't run out of memory.
@@ -180,9 +342,9 @@ function addPhoto(f, file) {
   });
 }
 
-async function processPhoto(f, file, job) {
+async function processPhoto(f, file, job, work = null, known = undefined) {
   const stillHere = () => faces[f] === job;
-  job.work = await decodePhoto(file);
+  job.work = work || (await decodePhoto(file));
   if (!stillHere()) return;
   job.busy = window.cv && window.cv.Mat ? 'Finding the panel…' : 'Loading vision (10 MB, once)…';
   renderSlot(f);
@@ -192,8 +354,10 @@ async function processPhoto(f, file, job) {
   job.busy = 'Finding the panel…';
   renderSlot(f);
   await new Promise((r) => setTimeout(r, 30));
-  let q = null;
-  try { q = await findPanel(job.work); } catch (e) { console.warn('panel finding failed', e); }
+  let q = known === undefined ? null : known;
+  if (known === undefined) {
+    try { q = await findPanel(job.work); } catch (e) { console.warn('panel finding failed', e); }
+  }
   if (!stillHere()) return;
   job.quad = q || defaultQuad(job.work.width, job.work.height);
   job.found = !!q;
@@ -240,11 +404,14 @@ function orient(f) {
 //   left/right  logD        = log(w/h)
 //   top/bottom  logW - logD = log(w/h)
 // A panel nobody has rotated by hand may get an extra quarter turn when that
-// fits the other panels better (a side photographed sideways, say).
+// fits the other panels better (a side photographed sideways, or a box that
+// was lying down in the photos).
 function refit() {
   const have = FACES.filter((f) => faces[f] && faces[f].flat && !faces[f].busy);
   const row = { front: [1, 0], back: [1, 0], left: [0, 1], right: [0, 1], top: [1, -1], bottom: [1, -1] };
-  const free = have.filter((f) => !faces[f].manual && f !== 'front');
+  // every panel you haven't turned by hand may get a quarter turn, the front
+  // included: a box photographed lying down then stands up on its own
+  const free = have.filter((f) => !faces[f].manual);
 
   const solve = (flips) => {
     // ridge prior (weight 0.05) keeps it solvable with only a few panels
@@ -293,7 +460,9 @@ function refit() {
   $('boxHint').hidden = have.length > 0;
   document.querySelector('.intro').hidden = FACES.some((f) => faces[f]);
   $('saveBox').disabled = have.length === 0 || FACES.some((f) => faces[f] && faces[f].busy);
+  applyScale();
   showDims();
+  if (S.view === 'dieline') renderDieline();
 }
 
 function showDims() {
@@ -313,6 +482,7 @@ function showDims() {
 
 let edFace = null;
 let edQuad = null;
+let edLine = null;     // the measuring line, in scale mode
 let drag = null;
 
 const faceSeg = $('faceSeg');
@@ -326,8 +496,12 @@ for (const f of FACES) {
 
 function openEditor(f) {
   edFace = f;
-  edQuad = faces[f].quad.map((p) => p.slice());
-  const s = faces[f];
+  const isScale = f === 'scale';
+  $('editor').classList.toggle('scale-mode', isScale);
+  const s = isScale ? scale : faces[f];
+  edQuad = (isScale ? s.card : s.quad).map((p) => p.slice());
+  edLine = isScale ? s.line.map((p) => p.slice()) : null;
+  if (isScale) { updateDimSeg(); showMeasure(); }
   const c = $('edCanvas');
   c.width = s.work.width; c.height = s.work.height;
   c.getContext('2d').drawImage(s.work, 0, 0);
@@ -382,6 +556,7 @@ window.addEventListener('resize', () => { if (edFace) { layoutSvg(); drawQuad();
 
 function drawQuad() {
   const svg = $('edSvg');
+  const isScale = edFace === 'scale';
   const c = $('edCanvas');
   const k = c.width / Math.max(1, c.getBoundingClientRect().width);   // image px per screen px
   const ns = 'http://www.w3.org/2000/svg';
@@ -405,7 +580,37 @@ function drawQuad() {
     svg.appendChild(v);
     svg.appendChild(h);
   });
+  if (isScale && edLine) {
+    const ln = document.createElementNS(ns, 'line');
+    ln.setAttribute('class', 'mline');
+    ln.setAttribute('x1', edLine[0][0]); ln.setAttribute('y1', edLine[0][1]);
+    ln.setAttribute('x2', edLine[1][0]); ln.setAttribute('y2', edLine[1][1]);
+    svg.appendChild(ln);
+    // label at the middle
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('class', 'mtext');
+    t.setAttribute('x', (edLine[0][0] + edLine[1][0]) / 2 + 14 * k);
+    t.setAttribute('y', (edLine[0][1] + edLine[1][1]) / 2 - 14 * k);
+    t.setAttribute('font-size', 15 * k);
+    t.textContent = scale && scale.mm ? `${scale.mm.toFixed(1)} mm` : '';
+    svg.appendChild(t);
+    edLine.forEach((p, j) => {
+      const v = document.createElementNS(ns, 'circle');
+      v.setAttribute('class', 'lv');
+      v.setAttribute('cx', p[0]); v.setAttribute('cy', p[1]); v.setAttribute('r', 7 * k);
+      const h = document.createElementNS(ns, 'circle');
+      h.setAttribute('class', 'h');
+      h.setAttribute('cx', p[0]); h.setAttribute('cy', p[1]); h.setAttribute('r', 26 * k);
+      h.dataset.i = 4 + j;
+      h.addEventListener('pointerdown', startDrag);
+      svg.appendChild(v);
+      svg.appendChild(h);
+    });
+  }
 }
+
+const pt = (i) => (i < 4 ? edQuad[i] : edLine[i - 4]);
+const setPt = (i, p) => { if (i < 4) edQuad[i] = p; else edLine[i - 4] = p; };
 
 function toImage(e) {
   const c = $('edCanvas'), r = c.getBoundingClientRect();
@@ -416,7 +621,7 @@ function startDrag(e) {
   e.preventDefault();
   const i = +e.target.dataset.i;
   const p = toImage(e);
-  drag = { i, dx: edQuad[i][0] - p[0], dy: edQuad[i][1] - p[1], id: e.pointerId };
+  drag = { i, dx: pt(i)[0] - p[0], dy: pt(i)[1] - p[1], id: e.pointerId };
   $('edSvg').setPointerCapture(e.pointerId);
   $('loupe').hidden = false;
   drawLoupe();
@@ -425,10 +630,11 @@ $('edSvg').addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const c = $('edCanvas');
   const p = toImage(e);
-  edQuad[drag.i] = [
+  setPt(drag.i, [
     Math.min(c.width, Math.max(0, p[0] + drag.dx)),
     Math.min(c.height, Math.max(0, p[1] + drag.dy)),
-  ];
+  ]);
+  if (edFace === 'scale') { scale.line = edLine.map((q) => q.slice()); scale.card = edQuad.map((q) => q.slice()); scale.mm = lineMM(scale.card, scale.line, scale.work.width, scale.work.height); }
   drawQuad();
   drawLoupe();
 });
@@ -444,8 +650,8 @@ $('edSvg').addEventListener('pointercancel', endDrag);
 function drawLoupe() {
   if (!drag) return;
   const L = $('loupe'), g = L.getContext('2d');
-  const s = faces[edFace].work;
-  const p = edQuad[drag.i];
+  const s = edFace === 'scale' ? scale.work : faces[edFace].work;
+  const p = pt(drag.i);
   const zoom = 3 * (s.width / Math.max(1, $('edCanvas').getBoundingClientRect().width)) ** 0.5;
   const span = L.width / zoom;
   g.fillStyle = '#000';
@@ -469,6 +675,17 @@ function drawLoupe() {
 async function commitQuad() {
   const f = edFace;
   if (!f) return;
+  if (f === 'scale') {
+    scale.card = orderQuad(edQuad);
+    edQuad = scale.card.map((p) => p.slice());
+    scale.line = edLine.map((p) => p.slice());
+    scale.placed = true;
+    measure();
+    drawQuad();
+    showMeasure();
+    renderScaleSlot();
+    return;
+  }
   faces[f].quad = orderQuad(edQuad);
   edQuad = faces[f].quad.map((p) => p.slice());
   drawQuad();
@@ -478,7 +695,30 @@ async function commitQuad() {
   showPreview();
 }
 
+// scale mode: which box side the line measures, and the reading
+const dimSeg = $('dimSeg');
+for (const d of ['long', 'mid', 'short']) {
+  const b = document.createElement('button');
+  b.textContent = DIM_LABEL[d];
+  b.dataset.dim = d;
+  b.addEventListener('click', () => { scale.dim = d; scale.placed = true; updateDimSeg(); applyScale(); showMeasure(); renderScaleSlot(); });
+  dimSeg.appendChild(b);
+}
+function updateDimSeg() {
+  dimSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(scale && b.dataset.dim === scale.dim)));
+}
+function showMeasure() {
+  const el = $('measure');
+  if (!scale) { el.textContent = ''; return; }
+  const H = parseFloat(S.realH);
+  el.innerHTML = `<b>${scale.mm.toFixed(1)} mm</b> along the box's ${DIM_LABEL[scale.dim].toLowerCase()} side` +
+    (scale.placed && dims && H > 0
+      ? `<br>Box: ${(dims.w * H * 10).toFixed(0)} × ${(H * 10).toFixed(0)} × ${(dims.d * H * 10).toFixed(0)} mm (W × H × D)`
+      : '<br><span class="dim">Drag the white line along one box edge, then pick which side it is.</span>');
+}
+
 function showPreview() {
+  if (edFace === 'scale') return;
   const s = edFace && faces[edFace];
   const holder = $('edPreview');
   holder.replaceChildren();
@@ -504,6 +744,11 @@ $('edRotate').addEventListener('click', () => {
 });
 $('edDetect').addEventListener('click', async () => {
   const f = edFace, s = faces[f];
+  if (f === 'scale') {
+    const q = findCard(scale.work);
+    if (q) { edQuad = q.map((p) => p.slice()); await commitQuad(); } else status("Couldn't find the card. Drag its corners instead.");
+    return;
+  }
   $('edDetect').disabled = true;
   $('edDetect').textContent = 'Looking…';
   try {
@@ -518,10 +763,49 @@ $('edReplace').addEventListener('click', () => { const f = edFace; closeEditor()
 $('edRemove').addEventListener('click', () => {
   const f = edFace;
   closeEditor();
+  if (f === 'scale') { scale = null; renderScaleSlot(); return; }
   faces[f] = null;
   renderSlot(f);
   box.setFace(f, null);
   refit();
+});
+
+/* ---------- dieline ---------- */
+
+let dieArt = true;
+function dielineInput() {
+  const H = parseFloat(S.realH);
+  const real = H > 0;
+  const hmm = real ? H * 10 : 100;      // without a real size, draw it 100 mm tall
+  const d = dims || { w: 0.6, h: 1, d: 0.35 };
+  const art = {};
+  if (dieArt) for (const f of FACES) if (faces[f] && faces[f].panel && !faces[f].busy) art[f] = faces[f].panel;
+  return { W: d.w * hmm, H: hmm, D: d.d * hmm, real, art };
+}
+function renderDieline() {
+  const holder = $('dieline');
+  const { svg, size } = buildDieline(dielineInput());
+  holder.innerHTML = svg;
+  $('dieNote').textContent = size.real
+    ? `${size.W.toFixed(1)} × ${size.H.toFixed(1)} × ${size.D.toFixed(1)} mm box · sheet ${size.sheetW.toFixed(0)} × ${size.sheetH.toFixed(0)} mm · print at 100%`
+    : 'Not to scale yet: add a scale card photo or a real height (Control) to print at real size';
+}
+$('dieArt').addEventListener('click', () => { dieArt = !dieArt; setSwitch($('dieArt'), dieArt); renderDieline(); });
+$('dieSvg').addEventListener('click', () => {
+  const { svg } = buildDieline(dielineInput());
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  a.download = `dieline-${Date.now()}.svg`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+$('diePrint').addEventListener('click', () => {
+  renderDieline();
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+  setTimeout(done, 1000);
 });
 
 /* ---------- saving: the shelf ---------- */
@@ -558,6 +842,9 @@ async function saveBox() {
         quad: s.quad, rot: s.rot, auto: s.auto, manual: s.manual, aspect: s.aspect,
       };
     }
+    if (scale && scale.work) {
+      rec.scale = { photo: await toBlob(scale.work, 'image/jpeg', 0.88), card: scale.card, line: scale.line, dim: scale.dim, placed: scale.placed };
+    }
     rec.thumb = await toBlob(box.snapshot(480), 'image/jpeg', 0.85);
     await putBox(rec);
     setCurrent(rec.id);
@@ -592,6 +879,12 @@ async function openBox(id) {
     renderSlot(f);
   }
   if (rec.realH != null) { S.realH = rec.realH; $('realH').value = rec.realH; persist(); }
+  scale = null;
+  if (rec.scale) {
+    scale = { work: await toCanvas(rec.scale.photo), card: rec.scale.card, line: rec.scale.line, dim: DIM_LABEL[rec.scale.dim] ? rec.scale.dim : 'long', placed: rec.scale.placed, mm: 0 };
+    scale.mm = lineMM(scale.card, scale.line, scale.work.width, scale.work.height);
+  }
+  renderScaleSlot();
   setCurrent(rec.id);
   refit();
 }
@@ -714,4 +1007,4 @@ refit();
 if (S.openId) openBox(S.openId).catch((e) => { console.warn(e); setCurrent(null); });
 
 // for testing in the console
-window.packaging = { faces, refit, SIZE, saveBox, openBox, listBoxes };
+window.packaging = { faces, refit, SIZE, saveBox, openBox, listBoxes, getScale: () => scale, dielineInput };
