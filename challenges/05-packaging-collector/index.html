@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Packaging collector · sketchbook26</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="app.js"></script>
+  <script src="../../assets/sticky.js" defer></script>
+</head>
+<body>
+  <a class="back" href="../../">← sketchbook26</a>
+
+  <header class="top">
+    <div class="name">PACKAGING COLLECTOR</div>
+    <div class="seg" role="tablist" aria-label="View">
+      <button role="tab" data-view="panels" aria-selected="true">Panels</button>
+      <button role="tab" data-view="box" aria-selected="false">Box</button>
+      <button role="tab" data-view="shelf" aria-selected="false">Shelf</button>
+    </div>
+    <div class="right">
+    <button class="btn save" id="saveBox" disabled>Save box</button>
+    <label class="ctl">
+      <span>Control</span>
+      <button class="switch" id="ctlToggle" role="switch" aria-checked="false"><i></i><b>OFF</b></button>
+    </label>
+    </div>
+  </header>
+
+  <main id="stage">
+    <section id="panelsView" class="view">
+      <div class="net" id="net">
+        <div class="intro">
+          <p>Photograph all six sides of a box, then drop the photos here.</p>
+          <button class="btn active" id="addAllTop">Add 6 photos</button>
+        </div>
+      </div>
+    </section>
+    <section id="boxView" class="view" hidden>
+      <canvas id="boxCanvas" width="2048" height="2048" aria-label="3D box, drag to rotate"></canvas>
+      <div class="hint" id="boxHint">Add photos in Panels to build the box</div>
+    </section>
+    <section id="shelfView" class="view shelf-view" hidden>
+      <div class="shelf" id="shelf"></div>
+    </section>
+  </main>
+
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <aside class="panel" id="panel" hidden>
+    <div class="row">
+      <button class="btn" id="addAll">Add 6 photos</button>
+      <button class="btn" id="clearAll">Clear all</button>
+      <div class="readout" id="dims">W × H × D</div>
+    </div>
+    <div class="row">
+      <label class="field">
+        <span>REAL HEIGHT</span>
+        <input id="realH" type="number" min="0" step="0.1" inputmode="decimal" placeholder="cm">
+      </label>
+      <label class="field toggle-field">
+        <span>SPIN</span>
+        <button class="switch" id="spinToggle" role="switch" aria-checked="false"><i></i><b>OFF</b></button>
+      </label>
+      <button class="btn" id="resetView">Reset view</button>
+    </div>
+    <div class="keys">
+      <span><kbd>S</kbd> save PNG</span>
+      <span><kbd>F</kbd> fullscreen</span>
+      <span class="dim">Tap a panel to fix its corners</span>
+    </div>
+  </aside>
+
+  <div class="editor" id="editor" hidden>
+    <div class="ed-top">
+      <div class="seg small" id="faceSeg" aria-label="Face"></div>
+      <button class="btn active" id="edDone">Done</button>
+    </div>
+    <div class="ed-body">
+      <div class="ed-photo" id="edPhoto">
+        <canvas id="edCanvas"></canvas>
+        <svg id="edSvg"></svg>
+        <canvas id="loupe" width="180" height="180" hidden></canvas>
+      </div>
+      <div class="ed-side">
+        <div class="ed-label">FLATTENED</div>
+        <div class="ed-preview" id="edPreview"></div>
+        <div class="ed-tools">
+          <button class="btn" id="edRotate">Rotate 90°</button>
+          <button class="btn" id="edDetect">Find panel again</button>
+          <button class="btn" id="edReplace">Replace photo</button>
+          <button class="btn" id="edRemove">Remove photo</button>
+        </div>
+        <p class="ed-help">Drag the four corners onto the edges of the box face.</p>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileMany" accept="image/*,.heic,.heif" multiple hidden>
+  <input type="file" id="fileOne" accept="image/*,.heic,.heif" hidden>
+</body>
+</html>
