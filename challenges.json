@@ -3,6 +3,7 @@
     "number": 1,
     "slug": "01-5x5-grid-font",
     "title": "Lateralus",
+    "released": true,
     "stack": "p5",
     "date": "2026-11-21",
     "description": "A 5×5 dot-grid font: every letter and numeral, a type tester, and controls for the dots."
@@ -11,6 +12,7 @@
     "number": 2,
     "slug": "02-color-and-food",
     "title": "Color and food",
+    "released": true,
     "stack": "p5",
     "date": "2026-11-20",
     "description": "Move across the canvas: x picks a color, y picks a food."
@@ -19,6 +21,7 @@
     "number": 3,
     "slug": "03-tilt-cursor",
     "title": "Tilt cursor",
+    "released": false,
     "stack": "p5",
     "date": "2026-11-22",
     "description": "Tilt your phone to steer a CAD crosshair, with the live gyro numbers on screen."
@@ -27,14 +30,20 @@
     "number": 4,
     "slug": "04-sticky-notes",
     "title": "Sticky notes",
+    "released": false,
     "stack": "html",
     "date": "2026-11-22",
-    "description": "A pad of sticky notes on every page: peel one off, stick it anywhere, type until it's full."
+    "description": "A pad of sticky notes on every page: peel one off, stick it anywhere, type until it's full.",
+    "sitePaths": [
+      "assets/sticky.js",
+      "notes"
+    ]
   },
   {
     "number": 5,
     "slug": "05-packaging-collector",
     "title": "Packaging collector",
+    "released": false,
     "stack": "three.js + OpenCV.js",
     "date": "2026-11-25",
     "description": "Photograph the six sides of a box: each panel is found, flattened and folded back into a 3D box you can turn around."
@@ -43,6 +52,7 @@
     "number": 6,
     "slug": "06-bandana-generator",
     "title": "Bandana generator",
+    "released": false,
     "stack": "p5",
     "status": "planned",
     "description": "Design one quadrant of a bandana, pick the motifs and the background, and watch it mirror into the full square."

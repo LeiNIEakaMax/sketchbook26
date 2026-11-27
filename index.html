@@ -31,6 +31,11 @@
     .card.empty { opacity: 0.45; }
     .card.planned { border-style: dashed; }
     .card.planned .thumb img { opacity: 0.6; }
+    /* Public site: an unreleased challenge shows its thumbnail and name only, and can't be opened. */
+    .card.soon { cursor: default; }
+    .card.soon .thumb img { opacity: 0.6; }
+    .tag { display: inline-block; margin-bottom: 4px; padding: 0 6px; border: 1px solid currentColor; font: 11px/18px var(--mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
+    .tag.on { background: var(--fg); border-color: var(--fg); color: var(--bg); }
     .phone { position: fixed; right: 16px; bottom: 72px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font: 12px/1.5 var(--mono); }
     .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
     .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
@@ -83,7 +88,7 @@
       .then((r) => r.json())
       .then((list) => {
         const byNum = new Map(list.map((c) => [c.number, c]));
-        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL && c.status !== 'planned').length;
+        const done = list.filter((c) => c.number >= 1 && c.number <= TOTAL && c.status !== 'planned' && !c.comingSoon).length;
         document.getElementById('bar').style.width = (done / TOTAL) * 100 + '%';
         const nums = [...new Set([...list.map((c) => c.number), ...Array.from({ length: TOTAL }, (_, i) => i + 1)])].sort((a, b) => a - b);
 
@@ -91,14 +96,19 @@
           const c = byNum.get(n);
           if (!c) return `<div class="card empty"><div class="thumb"><span class="n">${pad(n)}</span></div><div class="meta"><b>${pad(n)}</b><small>to come</small></div></div>`;
           const href = `challenges/${encodeURIComponent(c.slug)}/`;
+          const thumb = `<div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>`;
+          // Public site, not released yet (see scripts/build-public.mjs): thumbnail and name only.
+          if (c.comingSoon) return `<div class="card soon">${thumb}<div class="meta"><span class="tag on">Coming soon</span><b>${pad(n)} · ${esc(c.title)}</b></div></div>`;
+          // Local only: mark what the public site will show as coming soon.
+          const unreleased = c.released === false ? '<span class="tag">Not released</span>' : '';
           // A planned challenge: an idea with a thumbnail, nothing to open yet.
           if (c.status === 'planned') return `<div class="card planned">
-            <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
-            <div class="meta"><time>Planned</time><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || '')}</small></div>
+            ${thumb}
+            <div class="meta">${unreleased}<time>Planned</time><b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || '')}</small></div>
           </div>`;
           return `<a class="card" href="${href}">
-            <div class="thumb"><img src="${href}thumb.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'n',textContent:'${pad(n)}'}))"></div>
-            <div class="meta">${c.date ? `<time datetime="${esc(c.date)}">${fmtDate(c.date)}</time>` : ''}<b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
+            ${thumb}
+            <div class="meta">${unreleased}${c.date ? `<time datetime="${esc(c.date)}">${fmtDate(c.date)}</time>` : ''}<b>${pad(n)} · ${esc(c.title)}</b><small>${esc(c.description || c.stack)}</small></div>
           </a>`;
         }).join('');
       });

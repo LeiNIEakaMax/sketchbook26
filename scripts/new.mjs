@@ -62,6 +62,7 @@ manifest.push({
   number: Number(nn),
   slug,
   title,
+  released: false, // coming soon on the public site until set to true
   stack: template,
   date,
   description: '',

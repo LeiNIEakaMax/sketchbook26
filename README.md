@@ -49,7 +49,17 @@ A challenge only needs an `index.html` in its folder. To use three.js, plain Can
 
 ## Deploy
 
-The site lives at **https://sketchbook26.leitothemax.com**. `.github/workflows/pages.yml` publishes the repo on each push to `main`.
+The site lives at **https://sketchbook26.leitothemax.com**. `.github/workflows/pages.yml` publishes it on each push to `main`.
+
+### Released and coming soon
+
+Each challenge in `challenges.json` has `"released": true` or `false` (new challenges start at `false`). The workflow runs `npm run build`, which writes the public site to `_site/`:
+
+- Released challenges go out in full.
+- Unreleased ones go out as a thumbnail and a name with a **Coming soon** label, and the card can't be opened. Their code isn't published, so it can't be reached by URL either.
+- A challenge can own site-wide files in `sitePaths` (04's sticky notes: `assets/sticky.js` and `notes/`). While it's unreleased those are left out too, and the pages stop loading them.
+
+Locally (`npm run serve`) everything shows in full, with a small **Not released** tag. To release a challenge, set `"released": true` and merge to `main`. The repository itself is still public on GitHub, so this hides unreleased work from the site, not from someone reading the repo.
 
 One-time setup (already done once, kept here for reference):
 

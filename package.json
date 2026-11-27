@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "new": "node scripts/new.mjs",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "build": "node scripts/build-public.mjs"
   }
 }
