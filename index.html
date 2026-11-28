@@ -54,8 +54,6 @@
     #cad .guide { stroke: var(--accent); stroke-width: 0.5; stroke-dasharray: 4 4; stroke-dashoffset: 2; }
     #cad .bar { stroke: var(--accent); stroke-width: 2; }
     #cad span { position: absolute; font: 8px/11px var(--mono); color: var(--accent); white-space: nowrap; }
-    #cad .lx { top: 3px; }
-    #cad .ly { right: 4px; }
   </style>
   <script src="assets/sticky.js" defer></script>
 </head>
@@ -125,8 +123,16 @@
         l.setAttribute('x2', -px); r.setAttribute('x2', W - px);
         u.setAttribute('y2', -py); d.setAttribute('y2', H - py);
         x.setAttribute('transform', `translate(${px} ${py})`);
-        lx.textContent = `x=${Math.round(px)}`; lx.style.left = px + 4 + 'px';
-        ly.textContent = `y=${Math.round(py)}`; ly.style.top = py - 14 + 'px';
+        // Labels sit right of / above the guides, and flip to the other side when they'd run off screen.
+        lx.textContent = `x=${Math.round(px)}`;
+        ly.textContent = `y=${Math.round(py)}`;
+        const wx = lx.offsetWidth, wy = ly.offsetWidth, GAP = 4;
+        lx.style.left = (px + GAP + wx > W - GAP ? px - GAP - wx : px + GAP) + 'px';
+        // The x label lives at the top edge; move it to the bottom edge when the horizontal guide gets close.
+        lx.style.top = (py < 24 ? H - 14 : 3) + 'px';
+        ly.style.top = (py - 14 < GAP ? py + 3 : py - 14) + 'px';
+        // The y label lives at the right edge; move it to the left edge when the vertical guide gets close.
+        ly.style.left = (px > W - wy - 3 * GAP ? GAP : W - GAP - wy) + 'px';
       };
       document.documentElement.classList.add('cad');
       addEventListener('pointermove', (e) => {
