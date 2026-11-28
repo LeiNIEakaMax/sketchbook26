@@ -18,20 +18,21 @@
     header p.about + p { font: 12px/1.5 var(--mono); }
     .progress { margin-top: 16px; height: 4px; background: var(--line); }
     .progress span { display: block; height: 100%; background: var(--accent); }
-    /* Tiles sit edge to edge (gap 0). Each tile draws its right and bottom divider, the grid draws the
-       top and left edge, so every line is a single 1px dash and no two borders double up. */
-    main { --divider: 1px dashed #3a3a3a; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0; margin: 24px auto; max-width: 1152px; border-top: var(--divider); border-left: var(--divider); }
-    @media (max-width: 1200px) { main { margin-left: 24px; margin-right: 24px; } }
-    .card { position: relative; display: flex; flex-direction: column; padding: 16px; color: inherit; text-decoration: none; border-right: var(--divider); border-bottom: var(--divider); }
+    /* Figma "Home · Desktop 1442": tiles 276px wide, edge to edge (gap 0). Every tile has its own 1px border
+       and overlaps its neighbours by 1px, so each dividing line is drawn once. Thumbnails sit flush to the border. */
+    main { display: grid; grid-template-columns: repeat(auto-fill, 276px); gap: 0; padding: 24px 25px 25px 24px; max-width: 1200px; margin: 0 auto; }
+    @media (max-width: 599px) { main { grid-template-columns: 1fr; } }
+    .card { position: relative; display: flex; flex-direction: column; margin: 0 -1px -1px 0; color: inherit; text-decoration: none; border: 1px solid var(--fg); }
     .thumb { aspect-ratio: 1; background: #181818; display: grid; place-items: center; overflow: hidden; }
     .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .thumb .n { font: 48px/1.5 var(--mono); color: #333; }
-    .meta { flex: 1; padding: 12px 0 0; }
+    .meta { flex: 1; padding: 10px 12px; }
     .meta b { display: block; font-weight: 700; }
     .meta small { display: block; font-size: 12.5px; color: var(--dim); }
     .meta time { display: block; color: var(--dim); font: 12px/1.5 var(--mono); margin-bottom: 2px; }
-    a.card:hover { outline: 1px solid var(--accent); outline-offset: -1px; z-index: 1; }
-    .card.empty > * { opacity: 0.45; }
+    a.card:hover { border-color: var(--accent); z-index: 2; }
+    .card:not(.empty) { z-index: 1; }
+    .card.empty { opacity: 0.45; }
     .card.planned .thumb img { opacity: 0.6; }
     /* Public site: an unreleased challenge shows its thumbnail and name only, and can't be opened. */
     .card.soon { cursor: default; }
@@ -45,10 +46,9 @@
     .phone button { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--dim); font: inherit; cursor: pointer; }
     .phone button:hover { color: var(--fg); }
     /* AutoCAD-style cursor: four dashed guides that start at the pointer and run to the screen edges,
-       four solid crosshair bars, and x/y readouts. Mouse and trackpad only.
+       four solid bars set diagonally as an X, and x/y readouts. Mouse and trackpad only.
        Guides: 0.5 stroke, dash 4 / gap 4, offset 2 so every guide opens with a half dash at the pointer;
-       together they always draw a small solid cross at dead centre. Bars: 2 stroke, 6 to 15.5 from the pointer,
-       starting where the second dash starts. */
+       together they always draw a small solid cross at dead centre. Bars: 2 stroke, 6 to 15.5 from the pointer along the diagonals (Figma frame Home · Desktop 1442). */
     .cad, .cad * { cursor: none !important; }
     #cad { position: fixed; inset: 0; z-index: 1000; pointer-events: none; display: none; }
     .cad #cad.on { display: block; }
@@ -74,8 +74,8 @@
       <g id="cad-x">
         <line class="guide" id="cad-l" x1="0" y1="0" y2="0"/><line class="guide" id="cad-r" x1="0" y1="0" y2="0"/>
         <line class="guide" id="cad-u" x1="0" y1="0" x2="0"/><line class="guide" id="cad-d" x1="0" y1="0" x2="0"/>
-        <line class="bar" x1="-6" y1="0" x2="-15.5" y2="0"/><line class="bar" x1="6" y1="0" x2="15.5" y2="0"/>
-        <line class="bar" x1="0" y1="-6" x2="0" y2="-15.5"/><line class="bar" x1="0" y1="6" x2="0" y2="15.5"/>
+        <line class="bar" x1="-4.24" y1="-4.24" x2="-10.96" y2="-10.96"/><line class="bar" x1="4.24" y1="-4.24" x2="10.96" y2="-10.96"/>
+        <line class="bar" x1="-4.24" y1="4.24" x2="-10.96" y2="10.96"/><line class="bar" x1="4.24" y1="4.24" x2="10.96" y2="10.96"/>
       </g>
     </svg>
     <span class="lx" id="cad-lx"></span><span class="ly" id="cad-ly"></span>
