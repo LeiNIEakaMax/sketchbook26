@@ -20,13 +20,17 @@
     .progress span { display: block; height: 100%; background: var(--accent); }
     /* Tiles sit edge to edge (gap 0). Each tile draws its right and bottom divider, the grid draws the
        top and left edge, so every line is a single 1px dash and no two borders double up. */
-    main { --divider: 1px dashed #3a3a3a; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0; margin: 24px auto; max-width: 1152px; border-top: var(--divider); border-left: var(--divider); }
+    main { --divider: 1px dashed #3a3a3a; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 24px auto; max-width: 1152px; border-top: var(--divider); border-left: var(--divider); }
     @media (max-width: 1200px) { main { margin-left: 24px; margin-right: 24px; } }
-    .card { position: relative; display: flex; flex-direction: column; padding: 16px; color: inherit; text-decoration: none; border-right: var(--divider); border-bottom: var(--divider); }
-    .thumb { aspect-ratio: 1; background: #181818; display: grid; place-items: center; overflow: hidden; }
+    /* 4 tiles a row, then 3 as the window narrows; 2 and 1 on small screens, where 40px of padding won't fit. */
+    @media (max-width: 1100px) { main { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 760px) { main { grid-template-columns: repeat(2, 1fr); } .card { padding: 24px; } }
+    @media (max-width: 480px) { main { grid-template-columns: 1fr; } }
+    .card { position: relative; display: flex; flex-direction: column; padding: 40px; color: inherit; text-decoration: none; border-right: var(--divider); border-bottom: var(--divider); }
+    .thumb { flex: none; width: 100%; aspect-ratio: 1; background: #181818; display: grid; place-items: center; overflow: hidden; }
     .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .thumb .n { font: 48px/1.5 var(--mono); color: #333; }
-    .meta { flex: 1; padding: 12px 0 0; }
+    .meta { flex: 1; padding: 16px 0 0; }
     .meta b { display: block; font-weight: 700; }
     .meta small { display: block; font-size: 12.5px; color: var(--dim); }
     .meta time { display: block; color: var(--dim); font: 12px/1.5 var(--mono); margin-bottom: 2px; }
@@ -37,7 +41,7 @@
     .card.soon { cursor: default; }
     .card.soon .thumb img { opacity: 0.7; filter: blur(28px); transform: scale(1.2); }
     .tag { display: inline-block; margin-bottom: 4px; padding: 0 6px; border: 1px solid currentColor; font: 11px/18px var(--mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
-    .tag.on { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+    .tag.on { background: var(--dim); border-color: var(--dim); color: var(--bg); }
     .phone { position: fixed; right: 16px; bottom: 72px; width: 188px; padding: 12px; background: #1a1a1a; border: 1px solid var(--line); font: 12px/1.5 var(--mono); }
     .phone img { display: block; width: 164px; height: 164px; image-rendering: pixelated; background: #fff; }
     .phone p { margin: 8px 0 0; color: var(--dim); word-break: break-all; }
