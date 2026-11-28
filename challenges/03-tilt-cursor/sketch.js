@@ -277,10 +277,16 @@ function drawCursor(x, y, labels) {
     fill(ACCENT);
     textFont(MONO);
     textSize(24);
-    textAlign(LEFT, TOP);
-    text(`x=${Math.round(x)}`, x + 12, 10);
-    textAlign(RIGHT, BOTTOM);
-    text(`y=${Math.round(y)}`, W - 12, y - 10);
+    // Flip each label to the other side of its guide when it would run off the canvas.
+    const tx = `x=${Math.round(x)}`, ty = `y=${Math.round(y)}`;
+    const flipX = x + 12 + textWidth(tx) > W - 12;
+    const lowX = y < 70;
+    textAlign(flipX ? RIGHT : LEFT, lowX ? BOTTOM : TOP);
+    text(tx, flipX ? x - 12 : x + 12, lowX ? W - 10 : 10);
+    const leftY = x > W - textWidth(ty) - 36;
+    const flipY = y - 10 - 30 < 10;
+    textAlign(leftY ? LEFT : RIGHT, flipY ? TOP : BOTTOM);
+    text(ty, leftY ? 12 : W - 12, flipY ? y + 10 : y - 10);
     textFont(SANS);
   }
 }
